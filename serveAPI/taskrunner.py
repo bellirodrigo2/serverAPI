@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, Callable, MutableMapping, TypeVar
 
-from serveAPI.di import resolve_dependencies
+from serveAPI.di import DependencyInjector, resolve_dependencies
 from serveAPI.interfaces import (
     IDispatcher,
     IEncoder,
@@ -22,6 +22,8 @@ class TaskRunner(ITaskRunner[T]):
 
     dispatcher: IDispatcher
 
+    injector: DependencyInjector
+
     middleware: IMiddleware[T]
     router: IRouterAPI
 
@@ -32,6 +34,12 @@ class TaskRunner(ITaskRunner[T]):
     @property
     def middlewares(self) -> IMiddleware[T]:
         return self.middleware
+
+    @property
+    def overrides(
+        self,
+    ) -> MutableMapping[Callable[..., Any], Callable[..., Any]]:
+        return self.injector.overrides
 
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]:
 
@@ -44,7 +52,7 @@ class TaskRunner(ITaskRunner[T]):
 
         obj_data = self.validator.validate_input(data, route_pack.input_type)  # type: ignore
 
-        deps = await resolve_dependencies(handler)
+        deps = await self.injector.resolve(handler)
 
         async def bound_handler():
             return await handler(obj_data, **deps)

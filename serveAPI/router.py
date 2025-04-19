@@ -54,6 +54,14 @@ class PathValidator:
         return segment
 
 
+def extract_path_params(path: str) -> tuple[tuple[str, ...], str]:
+
+    pattern = re.compile(r"{([^{}]+)}")
+    params = tuple(pattern.findall(path))
+    normalized = pattern.sub("{}", path)
+    return params, normalized
+
+
 @dataclass
 class RouterAPI(IRouterAPI):
     prefix: str = field(default="")

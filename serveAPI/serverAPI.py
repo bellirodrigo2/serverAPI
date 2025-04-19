@@ -1,23 +1,30 @@
-from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, MutableMapping, Type
-from uuid import uuid4
+from dataclasses import dataclass
+from typing import Any, Callable, Coroutine, Generic, MutableMapping, Type, TypeVar
 
-from serveAPI.interfaces import IRouterAPI, ITaskRunner
-from serveAPI.tcpserver import TCPServer
-from serveAPI.udpserver import UDPServer
+from serveAPI.interfaces import IRouterAPI, ISockerServer, ITaskRunner
+
+T = TypeVar("T")
+
+
+async def ServerAPI(
+    runner: ITaskRunner[T],
+    make_server: Callable[[ITaskRunner[T]], ISockerServer],
+):
+    server = make_server(runner)
+    await server.start()
+    return Server(runner, server)
 
 
 @dataclass
-class ServerAPI:
-    host: str
-    port: int
-    runner: ITaskRunner
-    fire_and_forget: bool
-    spawn: Callable[[Coroutine[Any, Any, Any]], None]
+class Server(Generic[T]):
+    runner: ITaskRunner[T]
+    server: ISockerServer
 
-    makeid: Callable[[], str] = field(default=lambda: str(uuid4()))
-
-    server_type: str = field(default="tcp")  # Usando string ('tcp' ou 'udp')
+    @property
+    def dependency_overrides(
+        self,
+    ) -> MutableMapping[Callable[..., Any], Callable[..., Any]]:
+        return self.runner.overrides
 
     # API tipo metodo... app.include_router, add_middleware, add_exception_handler
     def include_router(self, router: IRouterAPI):
@@ -50,28 +57,3 @@ class ServerAPI:
 
     def exception_handler(self, exc_type: Type[BaseException]):
         return self.exception_handlers.decorator(exc_type)
-
-    async def __post_init__(self):
-        await self._start()
-
-    async def _start(self):
-        if self.server_type == "tcp":
-            server = TCPServer(
-                host=self.host,
-                port=self.port,
-                runner=self.runner,
-                fire_and_forget=self.fire_and_forget,
-                makeid=self.makeid,
-            )
-        elif self.server_type == "udp":
-            server = UDPServer(
-                host=self.host,
-                port=self.port,
-                runner=self.runner,
-                fire_and_forget=self.fire_and_forget,
-                makeid=self.makeid,
-                spawn=self.spawn,
-            )
-        else:
-            raise Exception(f'Server Type "{self.server_type}" is Unknown')
-        await server.start()

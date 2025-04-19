@@ -1,16 +1,18 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Generic, TypeVar
 
 from serveAPI.interfaces import ISockerServer, ITaskRunner
 from serveAPI.safedict import SafeDict
 
+T = TypeVar("T")
+
 
 @dataclass
-class TCPServer(ISockerServer):
+class TCPServer(ISockerServer, Generic[T]):
     host: str
     port: int
-    runner: ITaskRunner
+    runner: ITaskRunner[T]
     fire_and_forget: bool
     makeid: Callable[[], str]
     writers: SafeDict[asyncio.StreamWriter] = field(
