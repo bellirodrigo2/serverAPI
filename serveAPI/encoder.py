@@ -1,0 +1,43 @@
+from dataclasses import dataclass
+from typing import Callable, TypeVar
+
+from serveAPI.interfaces import IEncoder
+
+T = TypeVar("T")
+
+
+@dataclass
+class BaseEncoder(IEncoder[T]):
+    _encode: Callable[[T], bytes]
+    _decode: Callable[[bytes], T]
+    # _parser: Callable[[T], tuple[str, str, T]]
+    # _parser: Callable[[bytes], tuple[str, str, T]]
+
+    def decode(self, input: bytes) -> tuple[str, str, T]:
+        raise Exception("Base Encoder has no implementation")
+
+    def encode(self, output: T) -> bytes:
+
+        return self._encode(output)
+
+
+@dataclass
+class IntrusiveRouteEncoder(BaseEncoder[T]):
+    _parser: Callable[[T], tuple[str, str, T]]
+
+    def decode(self, input: bytes) -> tuple[str, str, T]:
+        decoded = self._decode(input)
+
+        return self._parser(decoded)
+
+
+@dataclass
+class HeaderRouteEncoder(BaseEncoder[T]):
+    _parser: Callable[[bytes], tuple[str, str, bytes]]
+
+    def decode(self, input: bytes) -> tuple[str, str, T]:
+
+        id, route, raw_data = self._parser(input)
+        data = self._decode(raw_data)
+
+        return id, route, data

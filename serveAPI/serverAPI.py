@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Coroutine, MutableMapping, Type
 from uuid import uuid4
 
-from serveAPI.interfaces import ISocketRouter, ITaskRunner
+from serveAPI.interfaces import IRouterAPI, ITaskRunner
 from serveAPI.tcpserver import TCPServer
 from serveAPI.udpserver import UDPServer
 
@@ -19,16 +19,18 @@ class ServerAPI:
 
     server_type: str = field(default="tcp")  # Usando string ('tcp' ou 'udp')
 
-    # FALTA ACESSO A ROUTER, MIDDLEWARE e exception que vem do taskrunner
-
     # API tipo metodo... app.include_router, add_middleware, add_exception_handler
-    def include_router(self, router: ISocketRouter):
-        # TODO AQUI VAI TER QUE ADICIONAR O DICT DESSE ROUTER COM O ROUTER GERAL DO IHANDLER
-        ...
+    def include_router(self, router: IRouterAPI):
+
+        tr_routers = self.runner.routers
+
+        for path, handler_pack in router.items():
+            tr_routers.register_route(path, handler_pack.handler)
 
     def add_middleware(
         self, middleware: Callable[[MutableMapping[str, Any]], MutableMapping[str, Any]]
-    ) -> None: ...
+    ) -> None:
+        tr_middleware = self.runner.middlewares
 
     def add_exception_handler(
         self,
@@ -38,7 +40,9 @@ class ServerAPI:
         self.exception_handlers.add_handler(exc_type, handler)
 
     # API decorador
-    def route(self, path: str): ...
+    def route(self, path: str):
+        tr_routers = self.runner.routers
+        tr_routers.add_route(path)
 
     def middleware(
         self,

@@ -1,24 +1,52 @@
-from typing import Any, Awaitable, Callable, MutableMapping, Protocol, Type, TypeVar
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    MutableMapping,
+    Protocol,
+    Sequence,
+    Type,
+    TypeVar,
+)
+
+T = TypeVar("T")
+# Tco = TypeVar("Tco", covariant=True)
 
 
-class IMiddleware(Protocol):
-    def add_middleware(self): ...
-    def proc(self, data: MutableMapping[str, Any]) -> MutableMapping[str, Any]: ...
+class IMiddleware(Protocol[T]):
+    def add_middleware(
+        self,
+    ) -> Callable[
+        [Callable[[T], T]],
+        Callable[[T], T],
+    ]: ...
+    def proc(self, data: T) -> T: ...
 
 
-class IMetaExtractor(Protocol):
-    def extract(self, input: bytes) -> tuple[str, str, bytes]: ...
+# class IMetaExtractor(Protocol):
+# def extract(self, input: bytes) -> tuple[str, str, bytes]: ...
 
 
-class IMsgParser(Protocol):
+# class IMsgParser(Protocol):
 
-    def input(self, input: bytes) -> MutableMapping[str, Any]: ...
-    def output(self, output: MutableMapping[str, Any]) -> bytes: ...
+# def input(self, input: bytes) -> MutableMapping[str, Any]: ...
+# def output(self, output: MutableMapping[str, Any]) -> bytes: ...
 
 
 class IDispatcher(Protocol):
+
+    async def respond(
+        self,
+        id: str,
+        addr: str | tuple[str, int] | None,
+        data: bytes,
+    ) -> None: ...
     async def dispatch(
-        self, func: Callable[..., Any], data: Any, id: str, addr: str | tuple[str, int]
+        self,
+        func: Callable[..., Any],
+        data: Any,
+        id: str,
+        addr: str | tuple[str, int],
     ) -> None: ...
 
 
@@ -31,12 +59,11 @@ class IHandlerPack(Protocol):
     def output_type(self) -> type | None: ...
 
 
-class ISocketRouter(Protocol):
+class IRouterAPI(Protocol):
+    def items(self) -> Sequence[tuple[str, IHandlerPack]]: ...
+    def register_route(self, path: str, handler: Callable[..., Any]) -> None: ...
     def add_route(self, path: str) -> Callable[..., Callable[..., Any]]: ...
     def get_handler_pack(self, route: str) -> IHandlerPack: ...
-
-
-T = TypeVar("T")
 
 
 class ITypeValidator(Protocol):
@@ -51,23 +78,15 @@ class ITypeValidator(Protocol):
     ) -> None: ...
 
 
-class IHandler(Protocol):
-    def handle(self, route: str, input: bytes) -> tuple[Callable[..., Any], Any]: ...
-
-
-class ITaskRunner(Protocol):
-
+class ITaskRunner(Protocol[T]):
+    @property
+    def routers(self) -> IRouterAPI: ...
+    @property
+    def middlewares(self) -> IMiddleware[T]: ...
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
 
 
-class ITaskContext(Protocol):
-    async def push(self, id: str, addr: str) -> None: ...
-    async def respond(
-        self, id: str, addr: str | tuple[str, int] | None, data: bytes
-    ) -> None: ...
-
-
-class ISockerServer:
+class ISockerServer(Protocol):
     async def start(self) -> None: ...
     async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
 
@@ -81,3 +100,8 @@ class IExceptionRegistry(Protocol):
         self, exc_type: Type[BaseException]
     ) -> Callable[..., Callable[[BaseException], Awaitable[Any]]]: ...
     async def resolve(self, exc: BaseException) -> Any: ...
+
+
+class IEncoder(Protocol[T]):
+    def decode(self, input: bytes) -> tuple[str, str, T]: ...
+    def encode(self, output: T) -> bytes: ...

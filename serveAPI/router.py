@@ -1,8 +1,9 @@
 import inspect
+import re
 from dataclasses import dataclass, field
-from typing import Any, Callable, MutableMapping, get_type_hints
+from typing import Any, Callable, MutableMapping, Sequence, get_type_hints
 
-from serveAPI.interfaces import IHandlerPack, ISocketRouter
+from serveAPI.interfaces import IHandlerPack, IRouterAPI
 
 
 class HandlerPack(IHandlerPack):
@@ -30,12 +31,54 @@ class HandlerPack(IHandlerPack):
         return self._output_type
 
 
+class PathValidationError(ValueError):
+    pass
+
+
 @dataclass
-class SocketRouter(ISocketRouter):
-    prefix: str
+class PathValidator:
+    _valid_path_re = re.compile(r"^[a-zA-Z0-9_\-]+$")  # Altere se quiser aceitar mais
+
+    def validate_path_segment(self, segment: str, name: str = "path") -> str:
+        segment = segment.strip("/")
+        if not segment:
+            raise PathValidationError(f"{name} segment cannot be empty.")
+        if "/" in segment:
+            raise PathValidationError(
+                f"{name} segment must not contain '/' characters."
+            )
+        if not self._valid_path_re.fullmatch(segment):
+            raise PathValidationError(
+                f"{name} segment '{segment}' contains invalid characters."
+            )
+        return segment
+
+
+@dataclass
+class RouterAPI(IRouterAPI):
+    prefix: str = field(default="")
     routes: MutableMapping[str, IHandlerPack] = field(
         default_factory=dict[str, IHandlerPack]
     )
+    path_validator: PathValidator = field(default_factory=PathValidator)
+
+    # def __post_init__(self):
+    # self.prefix = self.prefix.strip("/")
+
+    def items(self) -> Sequence[tuple[str, IHandlerPack]]:
+        return list(self.routes.items())
+
+    def _make_fullpath(self, path: str) -> str:
+        try:
+            cleaned_path = self.path_validator.validate_path_segment(path, name="path")
+            if self.prefix:
+                cleaned_prefix = self.path_validator.validate_path_segment(
+                    self.prefix, name="prefix"
+                )
+                return f"/{cleaned_prefix}/{cleaned_path}"
+            return f"/{cleaned_path}"
+        except PathValidationError as e:
+            raise ValueError(f"Invalid path construction: {e}")
 
     def register_route(self, path: str, handler: Callable[..., Any]) -> None:
 
@@ -49,8 +92,7 @@ class SocketRouter(ISocketRouter):
             input_type = type_hints.get(param_list[0].name, dict)
 
         output_type = type_hints.get("return", Any)
-
-        full_path = f"{self.prefix}/{path}"
+        full_path = self._make_fullpath(path)
 
         self.routes[full_path] = HandlerPack(
             handler=handler,
