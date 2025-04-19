@@ -22,7 +22,7 @@ class BaseEncoder(IEncoder[T]):
 
 
 @dataclass
-class IntrusiveRouteEncoder(BaseEncoder[T]):
+class IntrusiveHeaderEncoder(BaseEncoder[T]):
     _parser: Callable[[T], tuple[str, str, T]]
 
     def decode(self, input: bytes) -> tuple[str, str, T]:
@@ -32,7 +32,7 @@ class IntrusiveRouteEncoder(BaseEncoder[T]):
 
 
 @dataclass
-class HeaderRouteEncoder(BaseEncoder[T]):
+class NonIntrusiveHeaderEncoder(BaseEncoder[T]):
     _parser: Callable[[bytes], tuple[str, str, bytes]]
 
     def decode(self, input: bytes) -> tuple[str, str, T]:
