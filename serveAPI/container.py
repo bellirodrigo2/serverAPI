@@ -28,14 +28,17 @@ def provide_di(_: IoCContainer) -> DependencyInjector:
     return DependencyInjector()
 
 
-def make_dispatcher(
-    encoder=Depends(IntrusiveStrEncoder),
-    middleware=Depends(MiddlewareStr),
-    spawn=Depends(AsyncioSpawn),  # aqui acho que tem que ser lambda
-    exception=Depends(ExceptionRegistry),
-    safedict=Depends(SafeDictTaskID),
-):
-    return Dispatcher[Any](
+Dispatcher_ = Dispatcher[Any]
+
+
+def provide_dispatcher(container: IoCContainer) -> Dispatcher_:
+    encoder = container.resolve(IntrusiveStrEncoder)
+    middleware = container.resolve(MiddlewareStr)
+    spawn = container.resolve(AsyncioSpawn)
+    exception = container.resolve(ExceptionRegistry)
+    safedict = container.resolve(SafeDictTaskID)
+
+    return Dispatcher_(
         encoder=encoder,
         middleware=middleware,
         spawn=spawn,
@@ -43,7 +46,3 @@ def make_dispatcher(
         server=None,
         registry=safedict,
     )
-
-
-# use case
-# di.resolve(make_dispatcher)
