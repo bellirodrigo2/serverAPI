@@ -10,14 +10,11 @@ T = TypeVar("T")
 class BaseEncoder(IEncoder[T]):
     _encode: Callable[[T], bytes]
     _decode: Callable[[bytes], T]
-    # _parser: Callable[[T], tuple[str, str, T]]
-    # _parser: Callable[[bytes], tuple[str, str, T]]
 
     def decode(self, input: bytes) -> tuple[str, str, T]:
         raise Exception("Base Encoder has no implementation")
 
     def encode(self, output: T) -> bytes:
-
         return self._encode(output)
 
 

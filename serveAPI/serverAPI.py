@@ -11,6 +11,7 @@ async def ServerAPI(
     make_server: Callable[[ITaskRunner[T]], ISockerServer],
 ):
     server = make_server(runner)
+    runner.inject_server(server)
     await server.start()
     return Server(runner, server)
 

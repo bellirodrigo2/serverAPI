@@ -9,6 +9,8 @@ from typing import (
     TypeVar,
 )
 
+from serveAPI.di import IoCContainer
+
 T = TypeVar("T")
 # Tco = TypeVar("Tco", covariant=True)
 
@@ -33,23 +35,6 @@ class IMiddleware(Protocol[T]):
 # def output(self, output: MutableMapping[str, Any]) -> bytes: ...
 
 
-class IDispatcher(Protocol):
-
-    async def respond(
-        self,
-        id: str,
-        addr: str | tuple[str, int] | None,
-        data: bytes,
-    ) -> None: ...
-    async def dispatch(
-        self,
-        func: Callable[..., Any],
-        data: Any,
-        id: str,
-        addr: str | tuple[str, int],
-    ) -> None: ...
-
-
 class IHandlerPack(Protocol):
     @property
     def handler(self) -> Callable[..., Any]: ...
@@ -66,18 +51,6 @@ class IRouterAPI(Protocol):
     def get_handler_pack(self, route: str) -> IHandlerPack: ...
 
 
-class ITypeValidator(Protocol):
-    def validate_input(
-        self,
-        data: MutableMapping[str, Any],
-        input_type: Type[T] | None,
-    ) -> T | None: ...
-
-    def validate_output(
-        self, handler: Callable[..., Any], output_type: type | None
-    ) -> None: ...
-
-
 class ITaskRunner(Protocol[T]):
     @property
     def routers(self) -> IRouterAPI: ...
@@ -87,7 +60,7 @@ class ITaskRunner(Protocol[T]):
     @property
     def overrides(
         self,
-    ) -> MutableMapping[Callable[..., Any], Callable[..., Any]]: ...
+    ) -> IoCContainer: ...
 
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
 
@@ -95,6 +68,25 @@ class ITaskRunner(Protocol[T]):
 class ISockerServer(Protocol):
     async def start(self) -> None: ...
     async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
+
+
+class IDispatcher(Protocol):
+
+    def inject_server(self, server: ISockerServer): ...
+
+    async def respond(
+        self,
+        id: str,
+        addr: str | tuple[str, int] | None,
+        data: bytes,
+    ) -> None: ...
+    async def dispatch(
+        self,
+        func: Callable[..., Any],
+        data: Any,
+        id: str,
+        addr: str | tuple[str, int],
+    ) -> None: ...
 
 
 class IExceptionRegistry(Protocol):

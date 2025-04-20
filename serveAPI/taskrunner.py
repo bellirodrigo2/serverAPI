@@ -1,14 +1,13 @@
 from dataclasses import dataclass
-from typing import Any, Callable, MutableMapping, TypeVar
+from typing import Any, Callable, TypeVar
 
-from serveAPI.di import DependencyInjector, resolve_dependencies
+from serveAPI.di import DependencyInjector, IoCContainer
 from serveAPI.interfaces import (
     IDispatcher,
     IEncoder,
     IMiddleware,
     IRouterAPI,
     ITaskRunner,
-    ITypeValidator,
 )
 
 T = TypeVar("T")
@@ -18,7 +17,7 @@ T = TypeVar("T")
 class TaskRunner(ITaskRunner[T]):
 
     encoder: IEncoder[T]
-    validator: ITypeValidator
+    validator: Callable[[T, type[T]], T]
 
     dispatcher: IDispatcher
 
@@ -38,8 +37,8 @@ class TaskRunner(ITaskRunner[T]):
     @property
     def overrides(
         self,
-    ) -> MutableMapping[Callable[..., Any], Callable[..., Any]]:
-        return self.injector.overrides
+    ) -> IoCContainer:
+        return self.injector.container
 
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]:
 
@@ -50,7 +49,7 @@ class TaskRunner(ITaskRunner[T]):
 
         data = self.middleware.proc(data)
 
-        obj_data = self.validator.validate_input(data, route_pack.input_type)  # type: ignore
+        obj_data = self.validator(data, route_pack.input_type)  # type: ignore
 
         deps = await self.injector.resolve(handler)
 

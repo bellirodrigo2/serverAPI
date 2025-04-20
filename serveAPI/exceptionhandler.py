@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Coroutine, MutableMapping, Type
 
 from serveAPI.interfaces import IExceptionRegistry
@@ -9,7 +9,11 @@ from serveAPI.interfaces import IExceptionRegistry
 class ExceptionRegistry(IExceptionRegistry):
     _handlers: MutableMapping[
         Type[BaseException], Callable[[BaseException], Awaitable[Any]]
-    ]
+    ] = field(
+        default_factory=dict[
+            Type[BaseException], Callable[[BaseException], Awaitable[Any]]
+        ]
+    )
 
     def add_handler(
         self, exc_type: Type[BaseException]

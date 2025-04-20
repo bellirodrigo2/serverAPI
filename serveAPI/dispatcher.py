@@ -6,9 +6,7 @@ from serveAPI.interfaces import (
     IEncoder,
     IExceptionRegistry,
     IMiddleware,
-    IMsgParser,
     ISockerServer,
-    ITypeValidator,
 )
 from serveAPI.safedict import SafeDict
 
@@ -17,14 +15,16 @@ T = TypeVar("T")
 
 @dataclass
 class Dispatcher(IDispatcher, Generic[T]):
-    validator: ITypeValidator
     encoder: IEncoder[T]
     middleware: IMiddleware[T]
-    spawn: Callable[[Coroutine[Any, Any, Any]], None]
+    spawn: Callable[[Coroutine[Any, Any, Any]], Any]
     exception_handlers: IExceptionRegistry
 
-    server: ISockerServer
+    server: ISockerServer | None
     registry: SafeDict[str | tuple[str, int]]
+
+    def inject_server(self, server: ISockerServer) -> None:
+        self.server = server
 
     async def respond(
         self,
@@ -62,7 +62,6 @@ class Dispatcher(IDispatcher, Generic[T]):
     ) -> None:
         try:
             response = await func(data)
-            self.validator.validate_output(func, type(response))
 
             response = self.middleware.proc(response)
 
