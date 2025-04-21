@@ -1,6 +1,8 @@
 import pytest
 
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
+from serveAPI.exceptionhandler import ExceptionRegistry
+from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
 
 # ---------- IoC and DI ----------
@@ -48,5 +50,36 @@ def sample_handler_no_params():
     # Exemplo de handler sem parâmetros
     def handler() -> str:
         return "No parameters"
+
+    return handler
+
+
+# ---------- Middleware ----------
+
+
+@pytest.fixture
+def simple_middleware() -> Middleware[str]:
+    return Middleware[str]()
+
+
+# ---------- Exception Handler ----------
+
+
+@pytest.fixture
+def registry() -> ExceptionRegistry:
+    return ExceptionRegistry()
+
+
+@pytest.fixture
+def handler_called_flag():
+    return {"called": False, "value": None}
+
+
+@pytest.fixture
+def sample_handler(handler_called_flag):
+    async def handler(exc: BaseException) -> str:
+        handler_called_flag["called"] = True
+        handler_called_flag["value"] = str(exc)
+        return f"Handled: {str(exc)}"
 
     return handler

@@ -42,7 +42,12 @@ class ExceptionRegistry(IExceptionRegistry):
 
     async def resolve(self, exc: BaseException) -> Any:
         """Resolve uma exceção usando o handler registrado."""
-        for exc_type, handler in self._handlers.items():
+        sorted_handlers = sorted(
+            self._handlers.items(), key=lambda item: -len(item[0].mro())
+        )
+
+        for exc_type, handler in sorted_handlers:
             if isinstance(exc, exc_type):
                 return await handler(exc)
-        raise exc  # Relevanta se nenhum handler serve
+
+        raise exc
