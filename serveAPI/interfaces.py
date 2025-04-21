@@ -3,6 +3,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Mapping,
     Protocol,
     Sequence,
     Type,
@@ -26,19 +27,25 @@ class IMiddleware(Protocol[T]):
 
 
 class IHandlerPack(Protocol):
+
+    @property
+    def params(self) -> tuple[str, ...]: ...
     @property
     def handler(self) -> Callable[..., Any]: ...
     @property
     def input_type(self) -> type | None: ...
-    @property
-    def output_type(self) -> type | None: ...
+
+    # @property
+    # def output_type(self) -> type | None: ...
 
 
 class IRouterAPI(Protocol):
     def items(self) -> Sequence[tuple[str, IHandlerPack]]: ...
     def register_route(self, path: str, handler: Callable[..., Any]) -> None: ...
     def route(self, path: str) -> Callable[..., Callable[..., Any]]: ...
-    def get_handler_pack(self, route: str) -> IHandlerPack: ...
+    def get_handler_pack(
+        self, route: str
+    ) -> tuple[IHandlerPack, Mapping[str, str]]: ...
 
 
 class ITaskRunner(Protocol):

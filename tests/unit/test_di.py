@@ -4,9 +4,7 @@ from typing import Annotated
 
 import pytest
 
-from serveAPI.di import DependencyInjector, Depends, IoCContainer, IoCContainerSingleton
-
-# ---------- Dummies ----------
+from serveAPI.di import Depends
 
 
 @dataclass
@@ -25,29 +23,6 @@ async def make_async_service() -> Service:
 
 def service_with_dep(dep: Service = Depends(Service)) -> str:
     return f"Hello from {dep.name}"
-
-
-# ---------- Fixtures ----------
-
-
-@pytest.fixture
-def base_container() -> IoCContainer:
-    return IoCContainer()
-
-
-@pytest.fixture
-def singleton_container() -> IoCContainerSingleton:
-    return IoCContainerSingleton()
-
-
-@pytest.fixture
-def injector(base_container) -> DependencyInjector:
-    return DependencyInjector(container=base_container)
-
-
-@pytest.fixture
-def annotated_injector(singleton_container) -> DependencyInjector:
-    return DependencyInjector(container=singleton_container)
 
 
 # ---------- IoCContainer Tests ----------
