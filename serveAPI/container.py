@@ -117,10 +117,11 @@ def ServerAPI(host: str, port: int, fire_and_forget: bool):
     middleware = ioc.resolve(Middleware_)
     er = ioc.resolve(ExceptionRegistry)
     do = ioc.resolve(DependencyInjector)
-    return App(
+    app = App(
         _server=server,
         _routers=router,
         _middleware=middleware,
         _exception_handler=er,
         dependency_overrides=do,
     )
+    return app
