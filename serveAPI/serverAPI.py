@@ -1,16 +1,7 @@
 import asyncio
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
-from typing import (
-    Any,
-    AsyncGenerator,
-    Callable,
-    Coroutine,
-    Generic,
-    MutableMapping,
-    Type,
-    TypeVar,
-)
+from typing import Any, AsyncGenerator, Callable, Coroutine, Generic, Type, TypeVar
 
 from serveAPI.di import DependencyInjector
 from serveAPI.interfaces import (
@@ -28,10 +19,10 @@ class App(Generic[T]):
     _server: ISockerServer
     _routers: IRouterAPI
     _middleware: IMiddleware[T]
-    _exception_handlers: IExceptionRegistry
-    _lifespan: Callable[[], AbstractAsyncContextManager[None]] | None
-
+    _exception_handler: IExceptionRegistry
     dependency_overrides: DependencyInjector
+
+    _lifespan: Callable[[], AbstractAsyncContextManager[None]] | None = None
 
     @asynccontextmanager
     async def _default_lifespan(self) -> AsyncGenerator[None, None]:
@@ -86,7 +77,7 @@ class App(Generic[T]):
         handler: Callable[[BaseException], Coroutine[Any, Any, Any]],
     ) -> None:
         """Registra diretamente um handler de exceção, como app.add_exception_handler."""
-        self._exception_handlers.set_handler(exc_type, handler)
+        self._exception_handler.set_handler(exc_type, handler)
 
     # API decorador
     def route(self, path: str):
@@ -103,4 +94,4 @@ class App(Generic[T]):
         Callable[[BaseException], Coroutine[Any, Any, Any]],
     ]:
         """Usado como decorator: @app.exception_handler(...)"""
-        return self._exception_handlers.decorator(exc_type)
+        return self._exception_handler.decorator(exc_type)

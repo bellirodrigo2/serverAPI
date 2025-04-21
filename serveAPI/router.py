@@ -69,7 +69,7 @@ def extract_path_params(path: str) -> tuple[tuple[str, ...], str]:
 
 @dataclass
 class RouterAPI(IRouterAPI):
-    prefix: str
+    prefix: str = field(default="")
     routes: MutableMapping[str, IHandlerPack] = field(
         default_factory=dict[str, IHandlerPack]
     )

@@ -19,6 +19,7 @@ from serveAPI.interfaces import (
     IMiddleware,
     IRouterAPI,
     ITaskRunner,
+    ValidatorFunc,
 )
 
 T = TypeVar("T")
@@ -49,7 +50,7 @@ def replace_params(
 class TaskRunner(ITaskRunner, Generic[T]):
 
     encoder: IEncoder[T]
-    validator: Callable[[T, type[T]], T]
+    validator: ValidatorFunc
 
     dispatcher: IDispatcher
 

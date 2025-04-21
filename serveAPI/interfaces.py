@@ -58,6 +58,10 @@ class ISockerServer(Protocol):
     async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
 
 
+class ValidatorFunc(Protocol):
+    def __call__(self, arg: Any, type_: type[Any]) -> Any: ...
+
+
 class SpawnFunc(Protocol):
     def __call__(self, coro: Coroutine[Any, Any, Any]) -> Any: ...
 
