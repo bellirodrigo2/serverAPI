@@ -1,14 +1,16 @@
 import asyncio
-from typing import Any, Callable, Coroutine
+from dataclasses import dataclass
+from typing import Any, Coroutine
 
 from serveAPI.di import IoCContainer
-
-asyncio_spawn = asyncio.create_task
-
-AsyncioSpawn = Callable[[Coroutine[Any, Any, Any]], asyncio.Task[Any]]
+from serveAPI.interfaces import SpawnFunc
 
 
-def provide_spawn(
-    _: IoCContainer,
-) -> AsyncioSpawn:
-    return asyncio_spawn
+@dataclass
+class AsyncioSpawn(SpawnFunc):
+    def __call__(self, coro: Coroutine[Any, Any, Any]) -> asyncio.Task[Any]:
+        return asyncio.create_task(coro)
+
+
+def provide_spawn(_: IoCContainer) -> AsyncioSpawn:
+    return AsyncioSpawn()

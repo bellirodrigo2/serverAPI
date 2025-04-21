@@ -37,7 +37,11 @@ class PathValidationError(ValueError):
 
 @dataclass
 class PathValidator:
-    _valid_path_re = re.compile(r"^[a-zA-Z0-9_\-]+$")  # Altere se quiser aceitar mais
+    # _pattern: str = field(default=r"^[a-zA-Z0-9_\-]+$")
+    _pattern: str = field(default=r"^[a-zA-Z0-9_\-{}]+$")
+
+    def _compile(self):
+        return re.compile(self._pattern)
 
     def validate_path_segment(self, segment: str, name: str = "path") -> str:
         segment = segment.strip("/")
@@ -47,7 +51,7 @@ class PathValidator:
             raise PathValidationError(
                 f"{name} segment must not contain '/' characters."
             )
-        if not self._valid_path_re.fullmatch(segment):
+        if not self._compile().fullmatch(segment):
             raise PathValidationError(
                 f"{name} segment '{segment}' contains invalid characters."
             )
@@ -108,7 +112,7 @@ class RouterAPI(IRouterAPI):
             output_type=output_type,
         )
 
-    def add_route(self, path: str):
+    def route(self, path: str):
         def decorator(handler: Callable[..., Any]):
             self.register_route(path, handler)
             return handler

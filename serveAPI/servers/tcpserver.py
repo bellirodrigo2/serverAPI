@@ -1,23 +1,23 @@
 import asyncio
 from dataclasses import dataclass, field
-from typing import Callable, Generic, TypeVar
+from typing import Callable
 
 from serveAPI.interfaces import ISockerServer, ITaskRunner
 from serveAPI.safedict import SafeDict
 
-T = TypeVar("T")
-
 
 @dataclass
-class TCPServer(ISockerServer, Generic[T]):
+class TCPServer(ISockerServer):
     host: str
     port: int
-    runner: ITaskRunner[T]
+    runner: ITaskRunner
     fire_and_forget: bool
     makeid: Callable[[], str]
     writers: SafeDict[asyncio.StreamWriter] = field(
         default_factory=SafeDict[asyncio.StreamWriter]
     )
+
+    _server: asyncio.AbstractServer | None = None  # 👈 guarda o server
 
     async def _handle_client(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
@@ -67,9 +67,17 @@ class TCPServer(ISockerServer, Generic[T]):
                 print(f"[WARN] No writer found for address: {addr}")
 
     async def start(self):
-        server = await asyncio.start_server(self._handle_client, self.host, self.port)
-        addr = server.sockets[0].getsockname()
+        self._server = await asyncio.start_server(
+            self._handle_client, self.host, self.port
+        )
+        addr = self._server.sockets[0].getsockname()
         print(f"TCPServer started on {addr}")
 
-        async with server:
-            await server.serve_forever()
+        async with self._server:
+            await self._server.serve_forever()
+
+    async def stop(self):
+        if self._server:
+            self._server.close()
+            await self._server.wait_closed()
+            print("TCPServer stopped")

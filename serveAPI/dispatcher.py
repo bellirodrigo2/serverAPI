@@ -7,6 +7,7 @@ from serveAPI.interfaces import (
     IExceptionRegistry,
     IMiddleware,
     ISockerServer,
+    SpawnFunc,
 )
 from serveAPI.safedict import SafeDict
 
@@ -17,7 +18,7 @@ T = TypeVar("T")
 class Dispatcher(IDispatcher, Generic[T]):
     encoder: IEncoder[T]
     middleware: IMiddleware[T]
-    spawn: Callable[[Coroutine[Any, Any, Any]], Any]
+    spawn: SpawnFunc
     exception_handlers: IExceptionRegistry
 
     server: ISockerServer | None

@@ -1,60 +1,106 @@
+import asyncio
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine, Generic, MutableMapping, Type, TypeVar
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Coroutine,
+    Generic,
+    MutableMapping,
+    Type,
+    TypeVar,
+)
 
-from serveAPI.interfaces import IRouterAPI, ISockerServer, ITaskRunner
+from serveAPI.di import DependencyInjector
+from serveAPI.interfaces import (
+    IExceptionRegistry,
+    IMiddleware,
+    IRouterAPI,
+    ISockerServer,
+)
 
 T = TypeVar("T")
 
 
-async def ServerAPI(
-    runner: ITaskRunner[T],
-    make_server: Callable[[ITaskRunner[T]], ISockerServer],
-):
-    server = make_server(runner)
-    runner.inject_server(server)
-    await server.start()
-    return Server(runner, server)
-
-
 @dataclass
-class Server(Generic[T]):
-    runner: ITaskRunner[T]
-    server: ISockerServer
+class App(Generic[T]):
+    _server: ISockerServer
+    _routers: IRouterAPI
+    _middleware: IMiddleware[T]
+    _exception_handlers: IExceptionRegistry
+    _lifespan: Callable[[], AbstractAsyncContextManager[None]] | None
 
-    @property
-    def dependency_overrides(
-        self,
-    ) -> MutableMapping[Callable[..., Any], Callable[..., Any]]:
-        return self.runner.overrides
+    dependency_overrides: DependencyInjector
+
+    @asynccontextmanager
+    async def _default_lifespan(self) -> AsyncGenerator[None, None]:
+        await self._server.start()
+        try:
+            yield
+        finally:
+            await self._server.stop()
+
+    def lifespan(
+        self, func: Callable[[], AsyncGenerator[None, None]]
+    ) -> Callable[[], AsyncGenerator[None, None]]:
+        """Decorator para registrar lifespan customizado, igual FastAPI."""
+        user_cm = asynccontextmanager(func)
+
+        @asynccontextmanager
+        async def wrapped_lifespan():
+            # primeiro roda o startup padrão
+            async with self._default_lifespan():
+                # depois o hook do cliente
+                async with user_cm():
+                    yield
+            # o stop() já foi chamado no finally do default
+
+        self._lifespan = wrapped_lifespan
+        return func
+
+    async def run(self):
+        """
+        Resolve o lifespan (customizado ou default), entra no context manager
+        e mantém o servidor rodando até shutdown.
+        """
+        cm = self._lifespan or self._default_lifespan
+        async with cm():
+            # aqui o servidor já está “up” e bloqueia até shutdown
+            await asyncio.Event().wait()  # ou outra forma de esperar a parada
 
     # API tipo metodo... app.include_router, add_middleware, add_exception_handler
     def include_router(self, router: IRouterAPI):
-
-        tr_routers = self.runner.routers
-
         for path, handler_pack in router.items():
-            tr_routers.register_route(path, handler_pack.handler)
+            self._routers.register_route(path, handler_pack.handler)
 
-    def add_middleware(
-        self, middleware: Callable[[MutableMapping[str, Any]], MutableMapping[str, Any]]
-    ) -> None:
-        tr_middleware = self.runner.middlewares
+    def add_api_route(self, path: str, handler: Callable[..., Any]):
+        self._routers.register_route(path, handler)
+
+    def add_middleware(self, middleware: Callable[[T], T]) -> None:
+        self._middleware.add_middleware_func(middleware)
 
     def add_exception_handler(
         self,
         exc_type: Type[BaseException],
         handler: Callable[[BaseException], Coroutine[Any, Any, Any]],
-    ):
-        self.exception_handlers.add_handler(exc_type, handler)
+    ) -> None:
+        """Registra diretamente um handler de exceção, como app.add_exception_handler."""
+        self._exception_handlers.set_handler(exc_type, handler)
 
     # API decorador
     def route(self, path: str):
-        tr_routers = self.runner.routers
-        tr_routers.add_route(path)
+        self._routers.route(path)
 
-    def middleware(
+    def middleware(self):
+        self._middleware.add_middleware()
+
+    def exception_handler(
         self,
-    ): ...
-
-    def exception_handler(self, exc_type: Type[BaseException]):
-        return self.exception_handlers.decorator(exc_type)
+        exc_type: Type[BaseException],
+    ) -> Callable[
+        [Callable[[BaseException], Coroutine[Any, Any, Any]]],
+        Callable[[BaseException], Coroutine[Any, Any, Any]],
+    ]:
+        """Usado como decorator: @app.exception_handler(...)"""
+        return self._exception_handlers.decorator(exc_type)

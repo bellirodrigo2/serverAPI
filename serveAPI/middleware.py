@@ -13,19 +13,14 @@ class Middleware(IMiddleware[T]):
         default_factory=list[Callable[[T], T]]
     )
 
-    def add_middleware(
-        self,
-    ) -> Callable[
-        [Callable[[T], T]],
-        Callable[[T], T],
-    ]:
-        def decorator(
-            func: Callable[[T], T],
-        ):
-            self.procs.append(func)
-            return func
+    def add_middleware_func(self, func: Callable[[T], T]) -> Callable[[T], T]:
+        """Adiciona middleware diretamente"""
+        self.procs.append(func)
+        return func
 
-        return decorator
+    def add_middleware(self) -> Callable[[Callable[[T], T]], Callable[[T], T]]:
+        """Usado como decorador: @middleware.use()"""
+        return self.add_middleware_func
 
     def proc(self, data: T) -> T:
         for proc in self.procs:

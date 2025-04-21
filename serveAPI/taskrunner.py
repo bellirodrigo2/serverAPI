@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
-from serveAPI.di import DependencyInjector, IoCContainer
+from serveAPI.di import DependencyInjector
 from serveAPI.interfaces import (
     IDispatcher,
     IEncoder,
@@ -14,7 +14,7 @@ T = TypeVar("T")
 
 
 @dataclass
-class TaskRunner(ITaskRunner[T]):
+class TaskRunner(ITaskRunner, Generic[T]):
 
     encoder: IEncoder[T]
     validator: Callable[[T, type[T]], T]
@@ -25,20 +25,6 @@ class TaskRunner(ITaskRunner[T]):
 
     middleware: IMiddleware[T]
     router: IRouterAPI
-
-    @property
-    def routers(self) -> IRouterAPI:
-        return self.router
-
-    @property
-    def middlewares(self) -> IMiddleware[T]:
-        return self.middleware
-
-    @property
-    def overrides(
-        self,
-    ) -> IoCContainer:
-        return self.injector.container
 
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]:
 

@@ -2,20 +2,20 @@ from typing import (
     Any,
     Awaitable,
     Callable,
-    MutableMapping,
+    Coroutine,
     Protocol,
     Sequence,
     Type,
     TypeVar,
 )
 
-from serveAPI.di import IoCContainer
-
 T = TypeVar("T")
 # Tco = TypeVar("Tco", covariant=True)
 
 
 class IMiddleware(Protocol[T]):
+
+    def add_middleware_func(self, func: Callable[[T], T]) -> Callable[[T], T]: ...
     def add_middleware(
         self,
     ) -> Callable[
@@ -23,16 +23,6 @@ class IMiddleware(Protocol[T]):
         Callable[[T], T],
     ]: ...
     def proc(self, data: T) -> T: ...
-
-
-# class IMetaExtractor(Protocol):
-# def extract(self, input: bytes) -> tuple[str, str, bytes]: ...
-
-
-# class IMsgParser(Protocol):
-
-# def input(self, input: bytes) -> MutableMapping[str, Any]: ...
-# def output(self, output: MutableMapping[str, Any]) -> bytes: ...
 
 
 class IHandlerPack(Protocol):
@@ -47,27 +37,22 @@ class IHandlerPack(Protocol):
 class IRouterAPI(Protocol):
     def items(self) -> Sequence[tuple[str, IHandlerPack]]: ...
     def register_route(self, path: str, handler: Callable[..., Any]) -> None: ...
-    def add_route(self, path: str) -> Callable[..., Callable[..., Any]]: ...
+    def route(self, path: str) -> Callable[..., Callable[..., Any]]: ...
     def get_handler_pack(self, route: str) -> IHandlerPack: ...
 
 
-class ITaskRunner(Protocol[T]):
-    @property
-    def routers(self) -> IRouterAPI: ...
-    @property
-    def middlewares(self) -> IMiddleware[T]: ...
-
-    @property
-    def overrides(
-        self,
-    ) -> IoCContainer: ...
-
+class ITaskRunner(Protocol):
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
 
 
 class ISockerServer(Protocol):
     async def start(self) -> None: ...
+    async def stop(self) -> None: ...
     async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
+
+
+class SpawnFunc(Protocol):
+    def __call__(self, coro: Coroutine[Any, Any, Any]) -> Any: ...
 
 
 class IDispatcher(Protocol):
@@ -91,12 +76,20 @@ class IDispatcher(Protocol):
 
 class IExceptionRegistry(Protocol):
 
-    def add_handler(
-        self, exc_type: Type[BaseException]
-    ) -> Callable[..., Callable[[BaseException], Awaitable[Any]]]: ...
+    def set_handler(
+        self,
+        exc_type: Type[BaseException],
+        handler: Callable[[BaseException], Awaitable[Any]],
+    ) -> None: ...
+
     def decorator(
-        self, exc_type: Type[BaseException]
-    ) -> Callable[..., Callable[[BaseException], Awaitable[Any]]]: ...
+        self,
+        exc_type: Type[BaseException],
+    ) -> Callable[
+        [Callable[[BaseException], Coroutine[Any, Any, Any]]],
+        Callable[[BaseException], Coroutine[Any, Any, Any]],
+    ]: ...
+
     async def resolve(self, exc: BaseException) -> Any: ...
 
 

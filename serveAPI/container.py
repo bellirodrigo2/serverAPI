@@ -1,13 +1,13 @@
 from typing import Any
 
 from serveAPI import middleware
-from serveAPI.di import DependencyInjector, Depends, IoCContainer
+from serveAPI.di import DependencyInjector, IoCContainer
 from serveAPI.dispatcher import Dispatcher
+from serveAPI.encoder import IntrusiveHeaderEncoder
 from serveAPI.exceptionhandler import ExceptionRegistry
-from serveAPI.input_types.str_input import IntrusiveStrEncoder, MiddlewareStr
 from serveAPI.router import RouterAPI
 from serveAPI.safedict import SafeDict
-from serveAPI.spawns.asyncio_spawn import AsyncioSpawn
+from serveAPI.spawns.asyncio_spawn import AsyncioSpawn, ProvideSpawn
 
 SafeDictTaskID = SafeDict[str | tuple[str, int]]
 
@@ -28,17 +28,20 @@ def provide_di(_: IoCContainer) -> DependencyInjector:
     return DependencyInjector()
 
 
-Dispatcher_ = Dispatcher[Any]
+Encoder_ = IntrusiveHeaderEncoder[Any]
+Middleware_ = middleware.Middleware[Any]
+
+SafeDict_ = SafeDict[Any]
 
 
-def provide_dispatcher(container: IoCContainer) -> Dispatcher_:
-    encoder = container.resolve(IntrusiveStrEncoder)
-    middleware = container.resolve(MiddlewareStr)
+def provide_dispatcher(container: IoCContainer) -> Dispatcher[Any]:
+    encoder = container.resolve(Encoder_)
+    middleware = container.resolve(Middleware_)
     spawn = container.resolve(AsyncioSpawn)
     exception = container.resolve(ExceptionRegistry)
-    safedict = container.resolve(SafeDictTaskID)
+    safedict = container.resolve(SafeDict_)
 
-    return Dispatcher_(
+    return Dispatcher[Any](
         encoder=encoder,
         middleware=middleware,
         spawn=spawn,
