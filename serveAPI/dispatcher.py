@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Coroutine, Generic, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 
 from serveAPI.interfaces import (
     IDispatcher,
@@ -21,13 +21,13 @@ class Dispatcher(IDispatcher, Generic[T]):
     spawn: SpawnFunc
     exception_handlers: IExceptionRegistry
 
-    server: ISockerServer | None
     registry: SafeDict[str | tuple[str, int]]
+    _server: ISockerServer | None = None
 
     def inject_server(self, server: ISockerServer) -> None:
         self.server = server
 
-    async def respond(
+    async def _respond(
         self,
         id: str,
         addr: str | tuple[str, int] | None,
@@ -40,7 +40,7 @@ class Dispatcher(IDispatcher, Generic[T]):
             # No UDP, addr é tupla (ip, porta), no TCP addr é uma string.
             if isinstance(addr, tuple):
                 addr = addr[0]  # Envia só o IP
-            await self.server.write(data, addr)
+            await self._server.write(data, addr)  # type: ignore
 
     async def dispatch(
         self,
@@ -68,13 +68,13 @@ class Dispatcher(IDispatcher, Generic[T]):
 
             encoded = self.encoder.encode(response)
 
-            await self.respond(id, addr, encoded)
+            await self._respond(id, addr, encoded)
 
         except Exception as e:
             try:
                 result = await self.exception_handlers.resolve(e)
                 encoded = self.encoder.encode(result)
-                await self.respond(id, addr, encoded)
+                await self._respond(id, addr, encoded)
             except Exception as inner:
                 # fallback, erro no handler ou sem handler
-                await self.respond(id, addr, f"Unhandled error: {str(inner)}".encode())
+                await self._respond(id, addr, f"Unhandled error: {str(inner)}".encode())

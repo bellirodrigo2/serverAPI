@@ -12,7 +12,7 @@ from serveAPI.input_types.str_input import (
     provide_str_middleware,
     provide_str_validator,
 )
-from serveAPI.interfaces import ValidatorFunc
+from serveAPI.interfaces import ISockerServer, ValidatorFunc
 from serveAPI.router import RouterAPI
 from serveAPI.safedict import SafeDict
 from serveAPI.serverAPI import App
@@ -51,13 +51,14 @@ def provide_dispatcher(container: IoCContainer) -> Dispatcher_:
     spawn = container.resolve(AsyncioSpawn)
     exception = container.resolve(ExceptionRegistry)
     safedict = container.resolve(SafeDictTaskID)
+    none_server = container.resolve(ISockerServer)
 
     return Dispatcher[Any](
         encoder=encoder,
         middleware=middleware,
         spawn=spawn,
         exception_handlers=exception,
-        server=None,
+        _server=none_server,
         registry=safedict,
     )
 
@@ -87,6 +88,19 @@ def provide_safe_dict_server(_: IoCContainer) -> SafeDictStreamWriter:
     return SafeDictStreamWriter()
 
 
+class MakeID:
+    def __call__(self) -> str:
+        return str(uuid4())
+
+
+def provide_makeid(_: IoCContainer) -> MakeID:
+    return MakeID()
+
+
+def provide_none_server(_: IoCContainer) -> None:
+    return None
+
+
 ioc = IoCContainerSingleton()
 
 ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
@@ -98,21 +112,26 @@ ioc.register(Middleware_, provide_str_middleware)
 ioc.register(Encoder_, provide_str_intrusive_encoder)
 ioc.register(AsyncioSpawn, provide_spawn)
 ioc.register(ValidatorFunc, provide_str_validator)
+ioc.register(MakeID, provide_makeid)
 
 ioc.register(Dispatcher_, provide_dispatcher)
 
 ioc.register(TaskRunner, provide_taskrunner)
 
+ioc.register(ISockerServer, provide_none_server)
+
 
 def ServerAPI(host: str, port: int, fire_and_forget: bool):
     taskrunner = ioc.resolve(TaskRunner)
+    makeid = ioc.resolve(MakeID)
     server = TCPServer(
         host=host,
         port=port,
         runner=taskrunner,
         fire_and_forget=fire_and_forget,
-        makeid=lambda: str(uuid4()),
+        makeid=makeid,
     )
+    taskrunner.inject_server(server)
     router = ioc.resolve(RouterAPI)
     middleware = ioc.resolve(Middleware_)
     er = ioc.resolve(ExceptionRegistry)

@@ -1,7 +1,12 @@
+from copy import deepcopy
+from unittest.mock import AsyncMock
+
 import pytest
 
+from serveAPI.container import ioc
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.exceptionhandler import ExceptionRegistry
+from serveAPI.interfaces import ISockerServer
 from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
 
@@ -83,3 +88,14 @@ def sample_handler(handler_called_flag):
         return f"Handled: {str(exc)}"
 
     return handler
+
+
+# ---------- Dispatcher ----------
+
+
+@pytest.fixture(scope="function")
+def server_mocked_dispatch():
+
+    server_mock = AsyncMock()
+    previous_registry = deepcopy(ioc)
+    previous_registry.register(ISockerServer, lambda *args, **kwargs: server_mock)

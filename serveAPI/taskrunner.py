@@ -18,6 +18,7 @@ from serveAPI.interfaces import (
     IEncoder,
     IMiddleware,
     IRouterAPI,
+    ISockerServer,
     ITaskRunner,
     ValidatorFunc,
 )
@@ -58,6 +59,9 @@ class TaskRunner(ITaskRunner, Generic[T]):
 
     middleware: IMiddleware[T]
     router: IRouterAPI
+
+    def inject_server(self, server: ISockerServer) -> None:
+        self.dispatcher.inject_server(server)
 
     async def execute(self, input: bytes, addr: Any) -> tuple[str, str]:
 

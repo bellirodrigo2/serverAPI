@@ -48,14 +48,15 @@ class IRouterAPI(Protocol):
     ) -> tuple[IHandlerPack, Mapping[str, str]]: ...
 
 
-class ITaskRunner(Protocol):
-    async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
-
-
 class ISockerServer(Protocol):
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
     async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
+
+
+class ITaskRunner(Protocol):
+    def inject_server(self, server: ISockerServer) -> None: ...
+    async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
 
 
 class ValidatorFunc(Protocol):
@@ -70,12 +71,6 @@ class IDispatcher(Protocol):
 
     def inject_server(self, server: ISockerServer): ...
 
-    async def respond(
-        self,
-        id: str,
-        addr: str | tuple[str, int] | None,
-        data: bytes,
-    ) -> None: ...
     async def dispatch(
         self,
         func: Callable[..., Any],
