@@ -23,7 +23,11 @@ class TypeValidatorError(ServerAPIException):
     pass
 
 
-class MiddlewareError(ServerAPIException):
+class RequestMiddlewareError(ServerAPIException):
+    pass
+
+
+class ResponseMiddlewareError(ServerAPIException):
     pass
 
 

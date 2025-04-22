@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Callable, Generic, TypeVar
 
-from serveAPI.exceptions import UnhandledError
+from serveAPI.exceptions import (
+    EncoderEncodeError,
+    ResponseMiddlewareError,
+    UnhandledError,
+)
 from serveAPI.interfaces import (
     IDispatcher,
     IEncoder,
@@ -63,8 +67,16 @@ class Dispatcher(IDispatcher, Generic[T]):
             if fut.cancelled():
                 raise Exception("Coroutine cancelled!")
             response = fut.result()
-            response = self.middleware.proc(response, "response")
-            encoded = self.encoder.encode(response)
+
+            try:
+                response = self.middleware.proc(response, "response")
+            except Exception as e:
+                raise ResponseMiddlewareError from e
+            try:
+                encoded = self.encoder.encode(response)
+            except Exception as e:
+                raise EncoderEncodeError from e
+
         except Exception as e:
             encoded = self._resolve_exception(e)
 

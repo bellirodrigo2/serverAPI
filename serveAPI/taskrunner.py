@@ -16,8 +16,8 @@ from serveAPI.exceptions import (
     DependencyResolveError,
     DispatchError,
     EncoderDecodeError,
-    MiddlewareError,
     ParamsResolveError,
+    RequestMiddlewareError,
     RouterError,
     TypeValidatorError,
 )
@@ -95,7 +95,7 @@ class TaskRunner(ITaskRunner, Generic[T]):
             try:
                 data = self.middleware.proc(data, "request")
             except Exception as e:
-                raise MiddlewareError from e
+                raise RequestMiddlewareError from e
 
             try:
                 handler = route_pack.handler

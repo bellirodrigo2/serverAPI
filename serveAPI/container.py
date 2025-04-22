@@ -12,8 +12,9 @@ from serveAPI.exceptions import (
     DispatchError,
     EncoderDecodeError,
     EncoderEncodeError,
-    MiddlewareError,
     ParamsResolveError,
+    RequestMiddlewareError,
+    ResponseMiddlewareError,
     RouterError,
     TypeValidatorError,
     UnhandledError,
@@ -47,7 +48,8 @@ def provide_exception(_: IoCContainer) -> ExceptionRegistry:
     er.set_handler(EncoderDecodeError, internal_exception_handler)
     er.set_handler(RouterError, internal_exception_handler)
     er.set_handler(TypeValidatorError, internal_exception_handler)
-    er.set_handler(MiddlewareError, internal_exception_handler)
+    er.set_handler(RequestMiddlewareError, internal_exception_handler)
+    er.set_handler(ResponseMiddlewareError, internal_exception_handler)
     er.set_handler(ParamsResolveError, internal_exception_handler)
     er.set_handler(DependencyResolveError, internal_exception_handler)
     er.set_handler(DispatchError, internal_exception_handler)
