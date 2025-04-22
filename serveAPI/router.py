@@ -12,12 +12,10 @@ class HandlerPack(IHandlerPack):
         self,
         handler: Callable[..., Any],
         input_type: type | None,
-        # output_type: type | None,
         params: tuple[str, ...],
     ):
         self._handler = handler
         self._input_type = input_type
-        # self._output_type = output_type
         self._params = params
 
     @property
@@ -32,9 +30,8 @@ class HandlerPack(IHandlerPack):
     def input_type(self) -> type | None:
         return self._input_type
 
-    # @property
-    # def output_type(self) -> type | None:
-    # return self._output_type
+    def __str__(self) -> str:
+        return f'HandlerPack(input_type:"{self.input_type}, params:"{self.params}"")'
 
 
 class PathValidationError(ValueError):
@@ -102,7 +99,6 @@ class RouterAPI(IRouterAPI):
         full_path = self._make_fullpath(path)
 
         params, normpath = extract_path_params(full_path)
-
         self.routes[normpath] = HandlerPack(
             handler=handler,
             input_type=input_type,

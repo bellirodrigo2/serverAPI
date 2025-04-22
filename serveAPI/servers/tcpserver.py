@@ -40,10 +40,10 @@ class TCPServer(ISockerServer):
                 if not data:
                     break
 
-                route, id = await self.runner.execute(data, addr_str)
+                route = await self.runner.execute(data, addr_str)
 
                 if not self.fire_and_forget and addr:
-                    msg = f'Message id="{id}" received for route="{route}"'
+                    msg = f'Message received from addr:"{addr_str}" for route:"{route}"'
                     writer.write(msg.encode())
                 await writer.drain()
         finally:

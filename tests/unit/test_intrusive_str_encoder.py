@@ -18,26 +18,23 @@ from serveAPI.input_types.str_input import (
 )
 def test_make_str_intruside_header(value, route):
     """Verifica a criação do header com id, route e value"""
-    header = make_str_intruside_header(value, route, "id1")
+    header = make_str_intruside_header(value, route)
 
     # Verificar se o formato do header está correto
     assert header.startswith("serveAPI:")
-    assert len(header.split(":")) == 4  # Deve ter 4 partes no header
+    assert len(header.split(":")) == 3  # Deve ter 4 partes no header
     assert header.endswith(f"{route}:{value}")  # Deve terminar com route e value
-
-    # Verificar se o ID é um UUID válido
-    assert len(header.split(":")[1]) == 3  # O UUID tem 36 caracteres
 
 
 # Teste para o parser str_intrusive_header
 @pytest.mark.parametrize(
     "header, expected_output",
     [
-        ("serveAPI:12345:/api/route1:value1", ("12345", "/api/route1", "value1")),
-        ("serveAPI:67890:/api/route2:value2", ("67890", "/api/route2", "value2")),
+        ("serveAPI:/api/route1:value1", ("/api/route1", "value1")),
+        ("serveAPI:/api/route2:value2", ("/api/route2", "value2")),
         (
-            "serveAPI:abcdef:/test/route:test_value",
-            ("abcdef", "/test/route", "test_value"),
+            "serveAPI:/test/route:test_value",
+            ("/test/route", "test_value"),
         ),
     ],
 )
@@ -54,20 +51,20 @@ def test_str_intrusive_header_valid(header, expected_output):
         (
             "value1",
             "/api/route1",
-            b"serveAPI:id1:/api/route1:value1",
-            "serveAPI:id1:/api/route1:value1",
+            b"serveAPI:/api/route1:value1",
+            "serveAPI:/api/route1:value1",
         ),
         (
             "value2",
             "/api/route2",
-            b"serveAPI:id1:/api/route2:value2",
-            "serveAPI:id1:/api/route2:value2",
+            b"serveAPI:/api/route2:value2",
+            "serveAPI:/api/route2:value2",
         ),
         (
             "test_value",
             "/test/route",
-            b"serveAPI:id1:/test/route:test_value",
-            "serveAPI:id1:/test/route:test_value",
+            b"serveAPI:/test/route:test_value",
+            "serveAPI:/test/route:test_value",
         ),
     ],
 )
@@ -75,7 +72,7 @@ def test_intrusive_str_encoder(value, route, expected_encoded, expected_decoded)
     """Verifica a codificação e decodificação usando o IntrusiveStrEncoder"""
 
     encoder = IntrusiveStrEncoder()
-    header = make_str_intruside_header(value, route, id="id1")
+    header = make_str_intruside_header(value, route)
     encoded = encoder._encode(header)
     assert encoded == expected_encoded
     decoded = encoder._decode(encoded)
@@ -86,11 +83,11 @@ def test_intrusive_str_encoder(value, route, expected_encoded, expected_decoded)
 @pytest.mark.parametrize(
     "header, expected_parsed",
     [
-        ("serveAPI:12345:/api/route1:value1", ("12345", "/api/route1", "value1")),
-        ("serveAPI:67890:/api/route2:value2", ("67890", "/api/route2", "value2")),
+        ("serveAPI:/api/route1:value1", ("/api/route1", "value1")),
+        ("serveAPI:/api/route2:value2", ("/api/route2", "value2")),
         (
-            "serveAPI:abcdef:/test/route:test_value",
-            ("abcdef", "/test/route", "test_value"),
+            "serveAPI:/test/route:test_value",
+            ("/test/route", "test_value"),
         ),
     ],
 )

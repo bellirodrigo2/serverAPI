@@ -1,9 +1,8 @@
-from copy import deepcopy
 from unittest.mock import AsyncMock
 
 import pytest
 
-from serveAPI.container import ioc
+from serveAPI.container import Dispatcher_, get_ioc
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.exceptionhandler import ExceptionRegistry
 from serveAPI.interfaces import ISockerServer
@@ -93,9 +92,28 @@ def sample_handler(handler_called_flag):
 # ---------- Dispatcher ----------
 
 
-@pytest.fixture(scope="function")
-def server_mocked_dispatch():
+@pytest.fixture
+async def mocked_server_ioc() -> IoCContainerSingleton:
 
-    server_mock = AsyncMock()
-    previous_registry = deepcopy(ioc)
-    previous_registry.register(ISockerServer, lambda *args, **kwargs: server_mock)
+    def provide_server_mock(_: IoCContainer):
+        return AsyncMock(spec=ISockerServer)
+
+    ioc = get_ioc()
+    ioc.register(ISockerServer, provide_server_mock)
+
+    return ioc
+
+
+# ---------- TaskRunner ----------
+
+
+@pytest.fixture
+async def mocked_dispatch_ioc() -> IoCContainerSingleton:
+
+    def provide_dispatch_mock(_: IoCContainer):
+        return AsyncMock(spec=Dispatcher_)
+
+    ioc = get_ioc()
+    ioc.register(Dispatcher_, provide_dispatch_mock)
+
+    return ioc

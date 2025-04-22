@@ -1,6 +1,5 @@
 import inspect
 from dataclasses import dataclass
-from functools import partial
 from typing import (
     Annotated,
     Any,
@@ -20,14 +19,11 @@ from serveAPI.interfaces import (
     IRouterAPI,
     ISockerServer,
     ITaskRunner,
+    Params,
     ValidatorFunc,
 )
 
 T = TypeVar("T")
-
-
-class Params(dict[str, tuple[str, ...]]):
-    pass
 
 
 def replace_params(
@@ -44,7 +40,12 @@ def replace_params(
                 bound_args[name] = given_param
         elif ann is Params:
             bound_args[name] = given_param
-    return partial(handler, **bound_args)
+
+    def bounded_handler(*args: Any, **kwargs: Any):
+        final_kwargs = {**kwargs, **bound_args}
+        return handler(*args, **final_kwargs)
+
+    return bounded_handler
 
 
 @dataclass
@@ -63,30 +64,27 @@ class TaskRunner(ITaskRunner, Generic[T]):
     def inject_server(self, server: ISockerServer) -> None:
         self.dispatcher.inject_server(server)
 
-    async def execute(self, input: bytes, addr: Any) -> tuple[str, str]:
+    async def execute(self, input: bytes, addr: str | tuple[str, int]) -> str:
 
-        id, route, data = self.encoder.decode(input)
+        route, data = self.encoder.decode(input)
 
         route_pack, params = self.router.get_handler_pack(route)
-
         handler = route_pack.handler
-
-        data = self.middleware.proc(data)
 
         obj_data = self.validator(data, route_pack.input_type)  # type: ignore
 
-        params_handler = replace_params(handler, params)
+        data = self.middleware.proc(data, "request")
 
-        deps = await self.injector.resolve(params_handler)
+        params_bounded_handler = replace_params(handler, params)
 
-        async def bound_handler():
-            return await params_handler(obj_data, **deps)
+        deps = await self.injector.resolve(params_bounded_handler)
+
+        async def params_deps_bounded_handler():
+            return await params_bounded_handler(obj_data, **deps)
 
         await self.dispatcher.dispatch(
-            bound_handler,
-            obj_data,
-            id,
+            params_deps_bounded_handler,
             addr,
         )
 
-        return route, id
+        return route

@@ -1,4 +1,5 @@
 import asyncio
+from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
@@ -12,19 +13,19 @@ from serveAPI.input_types.str_input import (
     provide_str_middleware,
     provide_str_validator,
 )
-from serveAPI.interfaces import ISockerServer, ValidatorFunc
+from serveAPI.interfaces import ISockerServer, LaunchTask, ValidatorFunc
 from serveAPI.router import RouterAPI
 from serveAPI.safedict import SafeDict
 from serveAPI.serverAPI import App
 from serveAPI.servers.tcpserver import TCPServer
-from serveAPI.spawns.asyncio_spawn import AsyncioSpawn, provide_spawn
+from serveAPI.spawns.asyncio_launcher import provide_asyncio_launcher
 from serveAPI.taskrunner import TaskRunner
 
-SafeDictTaskID = SafeDict[str | tuple[str, int]]
+# SafeDictTaskID = SafeDict[str | tuple[str, int]]
 
 
-def provide_safe_dict_dispatcher(_: IoCContainer) -> SafeDictTaskID:
-    return SafeDictTaskID()
+# def provide_safe_dict_dispatcher(_: IoCContainer) -> SafeDictTaskID:
+# return SafeDictTaskID()
 
 
 def provide_exception(_: IoCContainer) -> ExceptionRegistry:
@@ -48,18 +49,18 @@ Dispatcher_ = Dispatcher[Any]
 def provide_dispatcher(container: IoCContainer) -> Dispatcher_:
     encoder = container.resolve(Encoder_)
     middleware = container.resolve(Middleware_)
-    spawn = container.resolve(AsyncioSpawn)
+    launcher = container.resolve(LaunchTask)
     exception = container.resolve(ExceptionRegistry)
-    safedict = container.resolve(SafeDictTaskID)
+    # safedict = container.resolve(SafeDictTaskID)
     none_server = container.resolve(ISockerServer)
 
     return Dispatcher[Any](
         encoder=encoder,
         middleware=middleware,
-        spawn=spawn,
+        launcher=launcher,
         exception_handlers=exception,
         _server=none_server,
-        registry=safedict,
+        # registry=safedict,
     )
 
 
@@ -103,14 +104,14 @@ def provide_none_server(_: IoCContainer) -> None:
 
 ioc = IoCContainerSingleton()
 
-ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
+# ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
 ioc.register(SafeDictStreamWriter, provide_safe_dict_server)
 ioc.register(ExceptionRegistry, provide_exception)
 ioc.register(RouterAPI, provide_router)
 ioc.register(DependencyInjector, provide_di)
 ioc.register(Middleware_, provide_str_middleware)
 ioc.register(Encoder_, provide_str_intrusive_encoder)
-ioc.register(AsyncioSpawn, provide_spawn)
+ioc.register(LaunchTask, provide_asyncio_launcher)
 ioc.register(ValidatorFunc, provide_str_validator)
 ioc.register(MakeID, provide_makeid)
 
@@ -119,6 +120,10 @@ ioc.register(Dispatcher_, provide_dispatcher)
 ioc.register(TaskRunner, provide_taskrunner)
 
 ioc.register(ISockerServer, provide_none_server)
+
+
+def get_ioc():
+    return deepcopy(ioc)
 
 
 def ServerAPI(host: str, port: int, fire_and_forget: bool):
@@ -136,11 +141,14 @@ def ServerAPI(host: str, port: int, fire_and_forget: bool):
     middleware = ioc.resolve(Middleware_)
     er = ioc.resolve(ExceptionRegistry)
     do = ioc.resolve(DependencyInjector)
+    launcher = ioc.resolve(LaunchTask)
+
     app = App(
         _server=server,
         _routers=router,
         _middleware=middleware,
         _exception_handler=er,
         dependency_overrides=do,
+        _launcher=launcher,
     )
     return app

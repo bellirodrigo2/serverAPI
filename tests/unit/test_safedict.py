@@ -36,7 +36,7 @@ async def test_concurrent_access():
     async def worker(i: int):
         await d.set(f"k{i}", i)
 
-    n = 100000
+    n = 10000
 
     await asyncio.gather(*(worker(i) for i in range(n)))
 

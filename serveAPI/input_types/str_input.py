@@ -7,14 +7,14 @@ from serveAPI.interfaces import ValidatorFunc
 from serveAPI.middleware import Middleware
 
 
-def make_str_intruside_header(value: str, route: str, id: str) -> str:
-    return f"serveAPI:{id}:{route}:{value}"
+def make_str_intruside_header(value: str, route: str) -> str:
+    return f"serveAPI:{route}:{value}"
 
 
-def str_intrusive_header(value: str) -> tuple[str, str, str]:
+def str_intrusive_header(value: str) -> tuple[str, str]:
 
-    return_tuple = tuple(value.split(":", 3))
-    if len(return_tuple) == 4:
+    return_tuple = tuple(value.split(":", 2))
+    if len(return_tuple) == 3:
         return return_tuple[1:]
     raise Exception()
 
@@ -23,7 +23,7 @@ def str_intrusive_header(value: str) -> tuple[str, str, str]:
 class IntrusiveStrEncoder(IntrusiveHeaderEncoder[str]):
     _encode: Callable[[str], bytes] = field(default=lambda x: x.encode())
     _decode: Callable[[bytes], str] = field(default=lambda x: x.decode())
-    _parser: Callable[[str], tuple[str, str, str]] = field(default=str_intrusive_header)
+    _parser: Callable[[str], tuple[str, str]] = field(default=str_intrusive_header)
 
 
 class StrValidator(ValidatorFunc):

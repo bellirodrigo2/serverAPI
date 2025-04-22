@@ -9,6 +9,7 @@ from serveAPI.interfaces import (
     IMiddleware,
     IRouterAPI,
     ISockerServer,
+    LaunchTask,
 )
 
 T = TypeVar("T")
@@ -21,16 +22,19 @@ class App(Generic[T]):
     _middleware: IMiddleware[T]
     _exception_handler: IExceptionRegistry
     dependency_overrides: DependencyInjector
+    _launcher: LaunchTask
 
     _lifespan: Callable[[], AbstractAsyncContextManager[None]] | None = None
 
     @asynccontextmanager
     async def _default_lifespan(self) -> AsyncGenerator[None, None]:
         await self._server.start()
+        await self._launcher.start()
         try:
             yield
         finally:
             await self._server.stop()
+            await self._launcher.start()
 
     def lifespan(
         self, func: Callable[[], AsyncGenerator[None, None]]

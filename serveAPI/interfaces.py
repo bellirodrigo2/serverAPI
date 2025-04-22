@@ -3,6 +3,7 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
+    Literal,
     Mapping,
     Protocol,
     Sequence,
@@ -13,17 +14,19 @@ from typing import (
 T = TypeVar("T")
 # Tco = TypeVar("Tco", covariant=True)
 
+middlewareType = Literal["request", "response"]
+
 
 class IMiddleware(Protocol[T]):
 
-    def add_middleware_func(self, func: Callable[[T], T]) -> Callable[[T], T]: ...
-    def add_middleware(
-        self,
-    ) -> Callable[
+    def add_middleware_func(
+        self, func: Callable[[T], T], type: middlewareType
+    ) -> Callable[[T], T]: ...
+    def add_middleware(self, type: middlewareType) -> Callable[
         [Callable[[T], T]],
         Callable[[T], T],
     ]: ...
-    def proc(self, data: T) -> T: ...
+    def proc(self, data: T, type: middlewareType) -> T: ...
 
 
 class IHandlerPack(Protocol):
@@ -48,6 +51,10 @@ class IRouterAPI(Protocol):
     ) -> tuple[IHandlerPack, Mapping[str, str]]: ...
 
 
+class Params(dict[str, str]):
+    pass
+
+
 class ISockerServer(Protocol):
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
@@ -56,15 +63,15 @@ class ISockerServer(Protocol):
 
 class ITaskRunner(Protocol):
     def inject_server(self, server: ISockerServer) -> None: ...
-    async def execute(self, input: bytes, addr: Any) -> tuple[str, str]: ...
+    async def execute(self, input: bytes, addr: str | tuple[str, int]) -> str: ...
 
 
 class ValidatorFunc(Protocol):
     def __call__(self, arg: Any, type_: type[Any]) -> Any: ...
 
 
-class SpawnFunc(Protocol):
-    def __call__(self, coro: Coroutine[Any, Any, Any]) -> Any: ...
+class LaunchTask(Protocol):
+    def __call__(self, func: Callable[[], Any], cb: Callable[..., Any]) -> None: ...
 
 
 class IDispatcher(Protocol):
@@ -73,9 +80,7 @@ class IDispatcher(Protocol):
 
     async def dispatch(
         self,
-        func: Callable[..., Any],
-        data: Any,
-        id: str,
+        func: Callable[[], Any],
         addr: str | tuple[str, int],
     ) -> None: ...
 
@@ -100,5 +105,5 @@ class IExceptionRegistry(Protocol):
 
 
 class IEncoder(Protocol[T]):
-    def decode(self, input: bytes) -> tuple[str, str, T]: ...
+    def decode(self, input: bytes) -> tuple[str, T]: ...
     def encode(self, output: T) -> bytes: ...

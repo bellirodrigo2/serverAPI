@@ -1,4 +1,6 @@
+import asyncio
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Callable, Generic, TypeVar
 
 from serveAPI.interfaces import (
@@ -7,9 +9,10 @@ from serveAPI.interfaces import (
     IExceptionRegistry,
     IMiddleware,
     ISockerServer,
-    SpawnFunc,
+    LaunchTask,
 )
-from serveAPI.safedict import SafeDict
+
+# from serveAPI.safedict import SafeDict
 
 T = TypeVar("T")
 
@@ -18,63 +21,48 @@ T = TypeVar("T")
 class Dispatcher(IDispatcher, Generic[T]):
     encoder: IEncoder[T]
     middleware: IMiddleware[T]
-    spawn: SpawnFunc
+    launcher: LaunchTask
     exception_handlers: IExceptionRegistry
 
-    registry: SafeDict[str | tuple[str, int]]
     _server: ISockerServer | None = None
 
     def inject_server(self, server: ISockerServer) -> None:
         self.server = server
 
+    async def dispatch(
+        self,
+        func: Callable[[], Any],
+        addr: str | tuple[str, int],
+    ) -> None:
+
+        ondone = partial(self._ondone, addr=addr)
+        self.launcher(func, ondone)
+
+    async def _ondone(self, fut: asyncio.Future[Any], addr: str | tuple[str, int]):
+        try:
+
+            if fut.cancelled():
+                raise Exception("Coroutine cancelled!")
+            response = fut.result()
+            response = self.middleware.proc(response, "response")
+            encoded = self.encoder.encode(response)
+        except Exception as e:
+            try:
+                result = await self.exception_handlers.resolve(e)
+                encoded = self.encoder.encode(result)
+            except Exception as inner:
+                encoded = f"Unhandled error: {str(inner)}".encode()
+
+        await self._respond(addr, encoded)
+
     async def _respond(
         self,
-        id: str,
         addr: str | tuple[str, int] | None,
         data: bytes,
     ) -> None:
-
-        await self.registry.pop(id)
 
         if addr is not None:
             # No UDP, addr é tupla (ip, porta), no TCP addr é uma string.
             if isinstance(addr, tuple):
                 addr = addr[0]  # Envia só o IP
             await self._server.write(data, addr)  # type: ignore
-
-    async def dispatch(
-        self,
-        func: Callable[..., Any],
-        data: Any,
-        id: str,
-        addr: str | tuple[str, int],
-    ) -> None:
-
-        await self.registry.set(id, addr)
-
-        self.spawn(self._run(func, data, id, addr))
-
-    async def _run(
-        self,
-        func: Callable[..., Any],
-        data: Any,
-        id: str,
-        addr: str | tuple[str, int],
-    ) -> None:
-        try:
-            response = await func(data)
-
-            response = self.middleware.proc(response)
-
-            encoded = self.encoder.encode(response)
-
-            await self._respond(id, addr, encoded)
-
-        except Exception as e:
-            try:
-                result = await self.exception_handlers.resolve(e)
-                encoded = self.encoder.encode(result)
-                await self._respond(id, addr, encoded)
-            except Exception as inner:
-                # fallback, erro no handler ou sem handler
-                await self._respond(id, addr, f"Unhandled error: {str(inner)}".encode())
