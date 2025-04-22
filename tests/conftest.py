@@ -104,9 +104,6 @@ async def mocked_server_ioc() -> IoCContainerSingleton:
     return ioc
 
 
-# ---------- TaskRunner ----------
-
-
 @pytest.fixture
 async def mocked_dispatch_ioc() -> IoCContainerSingleton:
 

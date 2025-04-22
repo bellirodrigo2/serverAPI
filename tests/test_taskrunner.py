@@ -1,9 +1,10 @@
+import asyncio
 from typing import Any, Callable, cast
 from unittest.mock import ANY
 
 import pytest
 
-from serveAPI.container import Dispatcher_
+from serveAPI.container import Dispatcher_, get_ioc
 from serveAPI.di import Depends, IoCContainerSingleton
 from serveAPI.interfaces import Params
 from serveAPI.router import RouterAPI
@@ -66,6 +67,7 @@ async def test_mocked_dispatch(
     ioc = mocked_dispatch_ioc
     router = cast(RouterAPI, ioc.resolve(RouterAPI))
     mockeddispatcher = ioc.resolve(Dispatcher_)
+
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
 
     router_reg, router_msg, router_idx = get_routes(klist)
@@ -79,6 +81,7 @@ async def test_mocked_dispatch(
     addr = "addr1"
 
     return_route = await taskrunner.execute(input, addr)
+    await asyncio.sleep(0.2)
 
     mockeddispatcher.dispatch.assert_called_with(ANY, addr)
     assert return_route == router_msg

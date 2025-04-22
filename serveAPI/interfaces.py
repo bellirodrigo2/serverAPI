@@ -71,7 +71,9 @@ class ValidatorFunc(Protocol):
 
 
 class LaunchTask(Protocol):
-    def __call__(self, func: Callable[[], Any], cb: Callable[..., Any]) -> None: ...
+    def __call__(
+        self, func: Callable[[], Any], cb: Callable[..., Any] | None
+    ) -> None: ...
 
 
 class IDispatcher(Protocol):
@@ -83,6 +85,7 @@ class IDispatcher(Protocol):
         func: Callable[[], Any],
         addr: str | tuple[str, int],
     ) -> None: ...
+    async def dispatch_exception(self, err: Exception, addr: str | tuple[str, int]): ...
 
 
 class IExceptionRegistry(Protocol):
@@ -90,18 +93,18 @@ class IExceptionRegistry(Protocol):
     def set_handler(
         self,
         exc_type: Type[BaseException],
-        handler: Callable[[BaseException], Awaitable[Any]],
+        handler: Callable[[BaseException], str],
     ) -> None: ...
 
     def decorator(
         self,
         exc_type: Type[BaseException],
     ) -> Callable[
-        [Callable[[BaseException], Coroutine[Any, Any, Any]]],
-        Callable[[BaseException], Coroutine[Any, Any, Any]],
+        [Callable[[BaseException], str]],
+        Callable[[BaseException], str],
     ]: ...
 
-    async def resolve(self, exc: BaseException) -> Any: ...
+    def resolve(self, exc: BaseException) -> str: ...
 
 
 class IEncoder(Protocol[T]):

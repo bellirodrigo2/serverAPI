@@ -1,5 +1,4 @@
 import asyncio
-from copy import deepcopy
 from typing import Any
 from uuid import uuid4
 
@@ -8,6 +7,18 @@ from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.dispatcher import Dispatcher
 from serveAPI.encoder import IntrusiveHeaderEncoder
 from serveAPI.exceptionhandler import ExceptionRegistry
+from serveAPI.exceptions import (
+    DependencyResolveError,
+    DispatchError,
+    EncoderDecodeError,
+    EncoderEncodeError,
+    MiddlewareError,
+    ParamsResolveError,
+    RouterError,
+    TypeValidatorError,
+    UnhandledError,
+    internal_exception_handler,
+)
 from serveAPI.input_types.str_input import (
     provide_str_intrusive_encoder,
     provide_str_middleware,
@@ -29,7 +40,20 @@ from serveAPI.taskrunner import TaskRunner
 
 
 def provide_exception(_: IoCContainer) -> ExceptionRegistry:
-    return ExceptionRegistry()
+
+    er = ExceptionRegistry()
+
+    er.set_handler(EncoderEncodeError, internal_exception_handler)
+    er.set_handler(EncoderDecodeError, internal_exception_handler)
+    er.set_handler(RouterError, internal_exception_handler)
+    er.set_handler(TypeValidatorError, internal_exception_handler)
+    er.set_handler(MiddlewareError, internal_exception_handler)
+    er.set_handler(ParamsResolveError, internal_exception_handler)
+    er.set_handler(DependencyResolveError, internal_exception_handler)
+    er.set_handler(DispatchError, internal_exception_handler)
+    er.set_handler(UnhandledError, handler=internal_exception_handler)
+
+    return er
 
 
 def provide_router(_: IoCContainer) -> RouterAPI:
@@ -102,28 +126,26 @@ def provide_none_server(_: IoCContainer) -> None:
     return None
 
 
-ioc = IoCContainerSingleton()
-
-# ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
-ioc.register(SafeDictStreamWriter, provide_safe_dict_server)
-ioc.register(ExceptionRegistry, provide_exception)
-ioc.register(RouterAPI, provide_router)
-ioc.register(DependencyInjector, provide_di)
-ioc.register(Middleware_, provide_str_middleware)
-ioc.register(Encoder_, provide_str_intrusive_encoder)
-ioc.register(LaunchTask, provide_asyncio_launcher)
-ioc.register(ValidatorFunc, provide_str_validator)
-ioc.register(MakeID, provide_makeid)
-
-ioc.register(Dispatcher_, provide_dispatcher)
-
-ioc.register(TaskRunner, provide_taskrunner)
-
-ioc.register(ISockerServer, provide_none_server)
-
-
 def get_ioc():
-    return deepcopy(ioc)
+    ioc = IoCContainerSingleton()
+
+    # ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
+    ioc.register(SafeDictStreamWriter, provide_safe_dict_server)
+    ioc.register(ExceptionRegistry, provide_exception)
+    ioc.register(RouterAPI, provide_router)
+    ioc.register(DependencyInjector, provide_di)
+    ioc.register(Middleware_, provide_str_middleware)
+    ioc.register(Encoder_, provide_str_intrusive_encoder)
+    ioc.register(LaunchTask, provide_asyncio_launcher)
+    ioc.register(ValidatorFunc, provide_str_validator)
+    ioc.register(MakeID, provide_makeid)
+
+    ioc.register(Dispatcher_, provide_dispatcher)
+
+    ioc.register(TaskRunner, provide_taskrunner)
+
+    ioc.register(ISockerServer, provide_none_server)
+    return ioc
 
 
 def ServerAPI(host: str, port: int, fire_and_forget: bool):

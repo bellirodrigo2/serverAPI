@@ -3,6 +3,7 @@ from typing import Any
 import pytest
 
 from serveAPI.exceptionhandler import ExceptionRegistry
+from serveAPI.exceptions import UnhandledError
 
 
 # === Exceções fictícias para teste ===
@@ -52,8 +53,8 @@ async def test_resolve_with_subclass(registry, sample_handler, handler_called_fl
 
 @pytest.mark.asyncio
 async def test_resolve_raises_if_no_handler(registry):
-    with pytest.raises(OtherError, match="not handled"):
-        await registry.resolve(OtherError("not handled"))
+    with pytest.raises(UnhandledError):
+        registry.resolve(OtherError("not handled"))
 
 
 @pytest.mark.asyncio

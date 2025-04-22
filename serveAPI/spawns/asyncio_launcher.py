@@ -8,9 +8,12 @@ from serveAPI.interfaces import LaunchTask
 
 @dataclass
 class AsyncioLauncher(LaunchTask):
-    def __call__(self, func: Callable[[], Any], cb: Callable[..., Any]) -> None:
+    def __call__(
+        self, func: Callable[[], Any], cb: Callable[..., Any] | None = None
+    ) -> None:
         task = asyncio.create_task(func())
-        task.add_done_callback(lambda fut: asyncio.create_task(cb(fut)))
+        if cb is not None:
+            task.add_done_callback(lambda fut: asyncio.create_task(cb(fut)))
 
 
 def provide_asyncio_launcher(_: IoCContainer) -> AsyncioLauncher:
