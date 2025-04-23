@@ -40,7 +40,6 @@ class PathValidator:
 
 
 def extract_path_params(path: str) -> tuple[tuple[str, ...], str]:
-
     pattern = re.compile(r"{([^{}]+)}")
     params = tuple(pattern.findall(path))
     normalized = pattern.sub("{}", path)
@@ -65,7 +64,6 @@ class RouterAPI(IRouterAPI):
         return f"/{path.strip('/')}/"
 
     def register_route(self, path: str, handler: Callable[..., Any]) -> None:
-
         self.path_validator.validate_path(path, name="path")
 
         type_hints = get_type_hints(handler)
@@ -97,7 +95,6 @@ class RouterAPI(IRouterAPI):
         return decorator
 
     def get_handler_pack(self, route: str) -> tuple[IHandlerPack, Mapping[str, str]]:
-
         route = f"/{route.strip('/')}/"
 
         params_input, normroute = extract_path_params(route)

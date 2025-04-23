@@ -31,11 +31,10 @@ from serveAPI.safedict import SafeDict
 from serveAPI.serverAPI import App
 from serveAPI.servers.tcpserver import TCPServer
 from serveAPI.spawns.asyncio_launcher import provide_asyncio_launcher
-from serveAPI.taskrunner import TaskRunner
+from serveAPI.taskrunner import TaskRunner, TaskRunner2
 
 
 def provide_exception(_: IoCContainer) -> ExceptionRegistry:
-
     er = ExceptionRegistry()
 
     er.set_handler(EncoderEncodeError, internal_exception_handler)
@@ -101,6 +100,28 @@ def provide_taskrunner(container: IoCContainer) -> TaskRunner[Any]:
     )
 
 
+def provide_taskrunner2(container: IoCContainer) -> TaskRunner2[Any]:
+    encoder = container.resolve(Encoder_)
+    cast = container.resolve(TypeCast)
+    di = container.resolve(DependencyInjector)
+    middleware = container.resolve(Middleware_)
+    router = container.resolve(RouterAPI)
+    launcher = container.resolve(LaunchTask)
+    exception = container.resolve(ExceptionRegistry)
+    none_server = container.resolve(ISockerServer)
+
+    return TaskRunner2(
+        encoder=encoder,
+        cast=cast,
+        injector=di,
+        middleware=middleware,
+        router=router,
+        launcher=launcher,
+        exception_handlers=exception,
+        _server=none_server,
+    )
+
+
 SafeDictStreamWriter = SafeDict[asyncio.StreamWriter]
 
 
@@ -134,6 +155,7 @@ def get_base_ioc():
     ioc.register(Dispatcher_, provide_dispatcher)
 
     ioc.register(TaskRunner, provide_taskrunner)
+    ioc.register(TaskRunner2, provide_taskrunner2)
 
     ioc.register(ISockerServer, provide_none_server)
     return ioc
@@ -161,8 +183,7 @@ def get_hashed_str_ioc():
 
 
 def ServerAPI(host: str, port: int, fire_and_forget: bool):
-
-    ioc = get_ioc()
+    ioc = get_str_ioc()
     taskrunner = ioc.resolve(TaskRunner)
     makeid = ioc.resolve(MakeID)
     server = TCPServer(

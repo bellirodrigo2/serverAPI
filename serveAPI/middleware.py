@@ -9,7 +9,6 @@ T = TypeVar("T")
 
 @dataclass
 class Middleware(IMiddleware[T]):
-
     procs_req: MutableSequence[Callable[[T], T]] = field(
         default_factory=list[Callable[[T], T]]
     )
@@ -37,7 +36,7 @@ class Middleware(IMiddleware[T]):
         """Usado como decorador: @middleware.use()"""
         return partial(self.add_middleware_func, type=type)
 
-    def proc(self, data: T, type: middlewareType) -> T:
+    async def proc(self, data: T, type: middlewareType) -> T:
         procs = self.procs_req if type == "request" else self.procs_resp
         if type == "request":
             procs = self.procs_req

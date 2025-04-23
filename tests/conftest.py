@@ -1,3 +1,4 @@
+from typing import Any, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -8,6 +9,7 @@ from serveAPI.exceptionhandler import ExceptionRegistry
 from serveAPI.interfaces import ISockerServer
 from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
+from serveAPI.taskrunner import ITaskRunner2, TaskRunner2
 
 # ---------- IoC and DI ----------
 
@@ -38,15 +40,6 @@ def annotated_injector(singleton_container) -> DependencyInjector:
 @pytest.fixture
 def router():
     return RouterAPI(prefix="api")
-
-
-@pytest.fixture
-def sample_handler():
-    # Exemplo de handler com parâmetros
-    def handler(param1: str, param2: str) -> str:
-        return f"Param1: {param1}, Param2: {param2}"
-
-    return handler
 
 
 @pytest.fixture
@@ -94,7 +87,6 @@ def sample_handler(handler_called_flag):
 
 @pytest.fixture
 async def mocked_server_ioc() -> IoCContainerSingleton:
-
     def provide_server_mock(_: IoCContainer):
         return AsyncMock(spec=ISockerServer)
 
@@ -106,11 +98,23 @@ async def mocked_server_ioc() -> IoCContainerSingleton:
 
 @pytest.fixture
 async def mocked_dispatch_ioc() -> IoCContainerSingleton:
-
     def provide_dispatch_mock(_: IoCContainer):
         return AsyncMock(spec=Dispatcher_)
 
     ioc = get_simple_str_ioc()
     ioc.register(Dispatcher_, provide_dispatch_mock)
+
+    return ioc
+
+
+@pytest.fixture
+async def taskrunner2_mockedserver_ioc() -> IoCContainerSingleton:
+
+    def provide_server_mock(_: IoCContainer):
+        return AsyncMock(spec=ISockerServer)
+
+    ioc = get_simple_str_ioc()
+
+    ioc.register(ISockerServer, provide_server_mock)
 
     return ioc

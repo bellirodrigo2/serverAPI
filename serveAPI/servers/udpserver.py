@@ -27,7 +27,6 @@ class UDPServer(asyncio.DatagramProtocol, ISockerServer):
         self.spawn(self._handle_datagram(data, addr))
 
     async def _handle_datagram(self, data: bytes, addr: tuple[str, int]):
-
         route, msg_id = await self.runner.execute(data, addr)
 
         if not self.fire_and_forget and isinstance(

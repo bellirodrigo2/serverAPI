@@ -29,7 +29,6 @@ def params_annotated_func_str(
     [params_func, params_annotated_func, params_func_str, params_annotated_func_str],
 )
 def test_params(func):
-
     olddict = {"a": "b", "c": "d"}
     newdict = {"foo": "bar", "hello": "world"}
 

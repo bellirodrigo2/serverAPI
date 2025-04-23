@@ -33,7 +33,6 @@ class NonIntrusiveHeaderEncoder(BaseEncoder[T]):
     _parser: Callable[[bytes], tuple[str, bytes]]
 
     def decode(self, input: bytes) -> tuple[str, T]:
-
         route, raw_data = self._parser(input)
         data = self._decode(raw_data)
 

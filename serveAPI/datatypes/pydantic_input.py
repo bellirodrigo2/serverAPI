@@ -58,7 +58,6 @@ def parse_nonintrusive_json_header(value: bytes) -> tuple[str, bytes]:
 def parse_intrusive_json_header(
     value: Mapping[Any, Any],
 ) -> tuple[str, Mapping[Any, Any]]:
-
     idx = "_route"
     if idx not in value:
         raise ParseError(

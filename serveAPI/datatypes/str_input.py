@@ -16,7 +16,6 @@ def make_str_simple_header(value: str, route: str) -> str:
 
 
 def parse_str_simple_header(value: str) -> tuple[str, str]:
-
     prefix = "serveAPI:"
     if not value.startswith(prefix):
         raise Exception("Invalid header")
@@ -55,7 +54,6 @@ def provide_str_middleware(_: IoCContainer) -> MiddlewareStr:
 
 
 def make_str_hashed_header(value: str, route: str) -> str:
-
     hashed = make_hash(value)
 
     return f"serveAPI:{hashed}:{route}:{value}"
@@ -72,7 +70,7 @@ def parse_str_hashed_header(header: str) -> tuple[str, str]:
     hash_end = header.find(":", start)
     if hash_end == -1:
         raise ParseError(
-            f"Function<parse_str_hashed_header>: Invalid format: hash_end == -1"
+            "Function<parse_str_hashed_header>: Invalid format: hash_end == -1"
         )
 
     hashed = header[start:hash_end]
@@ -81,7 +79,7 @@ def parse_str_hashed_header(header: str) -> tuple[str, str]:
     route_end = header.find(":", hash_end + 1)
     if route_end == -1:
         raise ParseError(
-            f"Function<parse_str_hashed_header>: Invalid format: route_end == -1"
+            "Function<parse_str_hashed_header>: Invalid format: route_end == -1"
         )
 
     route = header[hash_end + 1 : route_end]

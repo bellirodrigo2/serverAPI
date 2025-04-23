@@ -19,7 +19,6 @@ class Addr:
 
 
 class IMiddleware(Protocol[T]):
-
     def add_middleware_func(
         self, func: Callable[[T], T], type: middlewareType
     ) -> Callable[[T], T]: ...
@@ -27,11 +26,10 @@ class IMiddleware(Protocol[T]):
         [Callable[[T], T]],
         Callable[[T], T],
     ]: ...
-    def proc(self, data: T, type: middlewareType) -> T: ...
+    async def proc(self, data: T, type: middlewareType) -> T: ...
 
 
 class IHandlerPack(Protocol):
-
     @property
     def params(self) -> tuple[str, ...]: ...
     @property
@@ -60,7 +58,7 @@ class ISockerServer(Protocol):
 
 class ITaskRunner(Protocol):
     def inject_server(self, server: ISockerServer) -> None: ...
-    async def execute(self, input: bytes, addr: Addr) -> str: ...
+    async def __call__(self, input: bytes, addr: Addr) -> None: ...
 
 
 class TypeCast(Protocol[T]):
@@ -75,7 +73,6 @@ class LaunchTask(Protocol):
 
 
 class IDispatcher(Protocol):
-
     def inject_server(self, server: ISockerServer): ...
 
     async def dispatch(
@@ -87,6 +84,8 @@ class IDispatcher(Protocol):
 
 
 class IExceptionRegistry(Protocol):
+
+    def __contains__(self, key: Type[BaseException]) -> bool: ...
 
     def set_handler(
         self,

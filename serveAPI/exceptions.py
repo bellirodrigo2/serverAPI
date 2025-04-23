@@ -23,6 +23,14 @@ class TypeCastError(ServerAPIException):
     pass
 
 
+class TypeCastToModelError(ServerAPIException):
+    pass
+
+
+class TypeCastFromModelError(ServerAPIException):
+    pass
+
+
 class RequestMiddlewareError(ServerAPIException):
     pass
 

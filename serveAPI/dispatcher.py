@@ -38,12 +38,10 @@ class Dispatcher(IDispatcher, Generic[T]):
         func: Callable[[], Any],
         addr: Addr,
     ) -> None:
-
         ondone = partial(self._ondone, addr=addr)
         self.launcher(func, ondone)
 
     async def dispatch_exception(self, err: Exception, addr: Addr):
-
         encoded = self._resolve_exception(err)
 
         async def bonded_response():
@@ -61,14 +59,13 @@ class Dispatcher(IDispatcher, Generic[T]):
         return encoded
 
     async def _ondone(self, fut: asyncio.Future[Any], addr: Addr):
-
         Exc: type[Exception] | None = None
         try:
             if fut.cancelled():
                 raise Exception("Coroutine cancelled!")
             response = fut.result()
             Exc = ResponseMiddlewareError
-            response = self.middleware.proc(response, "response")
+            response = await self.middleware.proc(response, "response")
 
             Exc = EncoderEncodeError
             encoded = self.encoder.encode(response)
@@ -86,7 +83,6 @@ class Dispatcher(IDispatcher, Generic[T]):
         addr: Addr,
         data: bytes,
     ) -> None:
-
         if self._server is None:
             raise Exception("Server Not defined on dispatcher")
         await self._server.write(data, addr)  # type: ignore

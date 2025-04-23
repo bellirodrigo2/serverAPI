@@ -1,8 +1,5 @@
-from typing import Any
-
 import pytest
 
-from serveAPI.exceptionhandler import ExceptionRegistry
 from serveAPI.exceptions import UnhandledError
 
 
@@ -23,6 +20,9 @@ class OtherError(Exception):
 async def test_set_handler_and_resolve(registry, sample_handler, handler_called_flag):
     registry.set_handler(MyError, sample_handler)
 
+    assert MyError in registry
+    assert UnhandledError not in registry
+
     result = await registry.resolve(MyError("something went wrong"))
     assert result == "Handled: something went wrong"
     assert handler_called_flag["called"]
@@ -36,6 +36,8 @@ async def test_register_handler_with_decorator(registry, handler_called_flag):
         handler_called_flag["called"] = True
         return f"decorated: {exc}"
 
+    assert UnhandledError not in registry
+    assert MyError in registry
     result = await registry.resolve(MyError("deco"))
     assert result == "decorated: deco"
     assert handler_called_flag["called"]
@@ -50,11 +52,16 @@ async def test_resolve_with_subclass(registry, sample_handler, handler_called_fl
     assert result == "Handled: sub error"
     assert handler_called_flag["called"]
 
+    assert UnhandledError not in registry
+    assert MyError in registry
+
 
 @pytest.mark.asyncio
 async def test_resolve_raises_if_no_handler(registry):
     with pytest.raises(UnhandledError):
         registry.resolve(OtherError("not handled"))
+
+    assert UnhandledError not in registry
 
 
 @pytest.mark.asyncio
@@ -73,6 +80,10 @@ async def test_multiple_handlers_match_first_correct_type(registry):
     registry.set_handler(MySubError, handler_specific)
 
     result = await registry.resolve(MySubError("hello"))
+
+    assert UnhandledError not in registry
+    assert MyError in registry
+    assert MySubError in registry
 
     assert result == "specific handler"
     assert calls == ["specific"]  # deve chamar apenas o mais específico

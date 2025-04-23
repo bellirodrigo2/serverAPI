@@ -1,6 +1,15 @@
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, MutableMapping
+from typing import (
+    Annotated,
+    Any,
+    Awaitable,
+    Callable,
+    MutableMapping,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 
 @dataclass
@@ -10,7 +19,6 @@ class Depends:
 
 @dataclass
 class IoCContainer:
-
     _registry: dict[type[Any] | Callable[..., Any], Callable[["IoCContainer"], Any]] = (
         field(default_factory=dict)
     )
@@ -37,7 +45,6 @@ class IoCContainer:
         self._registry[type_] = provider
 
     def resolve(self, type_: type[Any] | Callable[..., Any]) -> Any:
-
         if type_ not in self._registry:
             raise ValueError(f"No provider registered for {type_}")
 
@@ -58,9 +65,6 @@ class IoCContainerSingleton(IoCContainer):
         instance = super().resolve(type_)
         self._instances[type_] = instance
         return instance
-
-
-from typing import Annotated, get_args, get_origin, get_type_hints
 
 
 @dataclass

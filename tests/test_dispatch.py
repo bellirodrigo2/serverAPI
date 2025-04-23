@@ -1,8 +1,6 @@
 import asyncio
 from unittest.mock import ANY, Mock
 
-import pytest
-
 from serveAPI.container import Dispatcher_
 from serveAPI.di import IoCContainerSingleton
 from serveAPI.interfaces import Addr, ISockerServer
@@ -14,7 +12,6 @@ from serveAPI.interfaces import Addr, ISockerServer
 #     ],
 # )
 async def test_dispatch(mocked_server_ioc: IoCContainerSingleton):
-
     ioc = mocked_server_ioc
     mockserver = ioc.resolve(ISockerServer)
     dispatcher = ioc.resolve(Dispatcher_)
@@ -36,7 +33,6 @@ async def test_dispatch(mocked_server_ioc: IoCContainerSingleton):
 
 
 async def test_dispatch_raise_func(mocked_server_ioc: IoCContainerSingleton):
-
     ioc = mocked_server_ioc
     mockserver = ioc.resolve(ISockerServer)
     dispatcher = ioc.resolve(Dispatcher_)

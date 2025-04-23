@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Callable
 
-from serveAPI.interfaces import ISockerServer, ITaskRunner
+from serveAPI.interfaces import Addr, ISockerServer, ITaskRunner
 from serveAPI.safedict import SafeDict
 
 
@@ -51,7 +51,7 @@ class TCPServer(ISockerServer):
             await writer.wait_closed()
             await self.writers.pop(addr_str)
 
-    async def write(self, data: bytes, addr: str | tuple[str, int]) -> None:
+    async def write(self, data: bytes, addr: Addr) -> None:
         writer = await self.writers.get(addr)
         if writer:
             try:

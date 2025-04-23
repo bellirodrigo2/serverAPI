@@ -12,6 +12,9 @@ class ExceptionRegistry(IExceptionRegistry):
         field(default_factory=dict[Type[BaseException], Callable[[BaseException], str]])
     )
 
+    def __contains__(self, key: Type[BaseException]) -> bool:
+        return key in self._handlers
+
     def set_handler(
         self,
         exc_type: Type[BaseException],
