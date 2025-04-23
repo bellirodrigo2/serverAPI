@@ -19,10 +19,6 @@ class RouterError(ServerAPIException):
     pass
 
 
-class TypeCastError(ServerAPIException):
-    pass
-
-
 class TypeCastToModelError(ServerAPIException):
     pass
 
@@ -44,10 +40,6 @@ class ParamsResolveError(ServerAPIException):
 
 
 class DependencyResolveError(ServerAPIException):
-    pass
-
-
-class DispatchError(ServerAPIException):
     pass
 
 

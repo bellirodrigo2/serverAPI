@@ -1,20 +1,16 @@
 import asyncio
+import json
 from typing import Any, Callable, cast
 from unittest.mock import ANY
 
 import pytest
 
-from serveAPI.container import Dispatcher_, Middleware_
+from serveAPI.container import Middleware_
 from serveAPI.di import IoCContainerSingleton
-from serveAPI.exceptions import RequestMiddlewareError, RouterError
-from serveAPI.interfaces import Addr, Params
+from serveAPI.interfaces import Addr, ISockerServer, Params
 from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
 from serveAPI.taskrunner import TaskRunner
-
-
-def get_db():
-    return "db"
 
 
 def simple_func(input: str) -> str:
@@ -61,13 +57,14 @@ def get_route(k: str | None) -> tuple[str, str]:
     ],
 )
 async def test_mocked_dispatch(
-    mocked_dispatch_ioc: IoCContainerSingleton,
+    taskrunner2_mockedserver_ioc: IoCContainerSingleton,
     func: Callable[[Any], Any],
     klist: list[tuple[str, str]] | None,
 ):
-    ioc = mocked_dispatch_ioc
+
+    ioc = taskrunner2_mockedserver_ioc
     router = cast(RouterAPI, ioc.resolve(RouterAPI))
-    mockeddispatcher = ioc.resolve(Dispatcher_)
+    mockedserver = ioc.resolve(ISockerServer)
 
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
 
@@ -81,10 +78,10 @@ async def test_mocked_dispatch(
     input = msg.encode()
     addr = Addr("localhost", 1234)
 
-    await taskrunner(input, addr)
+    taskrunner(input, addr)
     await asyncio.sleep(0.2)
 
-    mockeddispatcher.dispatch.assert_called_with(ANY, addr)
+    mockedserver.write.assert_called_with(ANY, addr)
     # args, kwargs = mockeddispatcher.dispatch.call_args
 
     assert router_idx in router.routes
@@ -93,10 +90,11 @@ async def test_mocked_dispatch(
 
 
 async def test_mocked_dispatch_no_route(
-    mocked_dispatch_ioc: IoCContainerSingleton,
+    taskrunner2_mockedserver_ioc: IoCContainerSingleton,
 ):
-    ioc = mocked_dispatch_ioc
-    mockeddispatcher = ioc.resolve(Dispatcher_)
+
+    ioc = taskrunner2_mockedserver_ioc
+    mockedserver = ioc.resolve(ISockerServer)
 
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
 
@@ -107,30 +105,37 @@ async def test_mocked_dispatch_no_route(
     input = msg.encode()
     addr = Addr("localhost", 1234)
 
-    await taskrunner(input, addr)
+    taskrunner(input, addr)
     await asyncio.sleep(0.2)
 
-    mockeddispatcher.dispatch_exception.assert_called_with(ANY, addr)
-    args, _ = mockeddispatcher.dispatch_exception.call_args
-    assert isinstance(args[0], RouterError)
-    assert str(args[0]) == "Error on TaskRunner"
+    mockedserver.write.assert_called_with(ANY, addr)
+    args, _ = mockedserver.write.call_args
+
+    err = json.loads(args[0].decode())
+    assert err["Exception"]["Type"] == "RouterError"
+    assert err["Exception"]["Msg"] == "Error on TaskRunner"
+    assert err["OriginalException"]["Type"] == "Exception"
+    assert "not found on RouterAPI" in err["OriginalException"]["Msg"]
 
 
 async def test_mocked_dispatch_raise_middleware(
-    mocked_dispatch_ioc: IoCContainerSingleton,
+    taskrunner2_mockedserver_ioc: IoCContainerSingleton,
 ):
-    ioc = mocked_dispatch_ioc
-    mockeddispatcher = ioc.resolve(Dispatcher_)
+    ioc = taskrunner2_mockedserver_ioc
     middleware = cast(Middleware[Any], ioc.resolve(Middleware_))
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
 
     router = cast(RouterAPI, ioc.resolve(RouterAPI))
+    mockedserver = ioc.resolve(ISockerServer)
 
     route = "route"
     text = "helloworld"
 
-    def raise_func():
-        raise Exception("Middleware Error")
+    class ThisError(Exception):
+        pass
+
+    def raise_func(_: Any):
+        raise ThisError("Middleware Error")
 
     def func():
         return None
@@ -143,10 +148,14 @@ async def test_mocked_dispatch_raise_middleware(
     input = msg.encode()
     addr = Addr("localhost", 1234)
 
-    await taskrunner(input, addr)
+    taskrunner(input, addr)
     await asyncio.sleep(0.2)
 
-    mockeddispatcher.dispatch_exception.assert_called_with(ANY, addr)
-    args, _ = mockeddispatcher.dispatch_exception.call_args
-    assert isinstance(args[0], RequestMiddlewareError)
-    assert str(args[0]) == "Error on TaskRunner"
+    mockedserver.write.assert_called_with(ANY, addr)
+    args, _ = mockedserver.write.call_args
+    err = json.loads(args[0].decode())
+    assert err["Exception"]["Type"] == "RequestMiddlewareError"
+    assert err["Exception"]["Msg"] == "Error on TaskRunner"
+    assert err["OriginalException"]["Type"] == "ThisError"
+    assert "Middleware Error" in err["OriginalException"]["Msg"]
+    print(err)

@@ -1,5 +1,15 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, Mapping, Protocol, Sequence, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Literal,
+    Mapping,
+    Protocol,
+    Sequence,
+    Type,
+    TypeVar,
+)
 
 T = TypeVar("T")
 U = TypeVar("U")
@@ -56,31 +66,18 @@ class ISockerServer(Protocol):
     async def write(self, data: bytes, addr: Addr) -> None: ...
 
 
-class ITaskRunner(Protocol):
-    def inject_server(self, server: ISockerServer) -> None: ...
-    async def __call__(self, input: bytes, addr: Addr) -> None: ...
-
-
 class TypeCast(Protocol[T]):
     def to_model(self, arg: T, model: Callable[..., Any]) -> Any: ...
     def from_model(self, arg: Any) -> T: ...
 
 
 class LaunchTask(Protocol):
-    def __call__(
-        self, func: Callable[[], Any], cb: Callable[..., Any] | None
-    ) -> None: ...
+    def __call__(self, coro: Coroutine[Any, Any, None]) -> None: ...
 
 
-class IDispatcher(Protocol):
-    def inject_server(self, server: ISockerServer): ...
-
-    async def dispatch(
-        self,
-        func: Callable[[], Any],
-        addr: Addr,
-    ) -> None: ...
-    async def dispatch_exception(self, err: Exception, addr: Addr): ...
+class ITaskRunner(Protocol):
+    def inject_server(self, server: ISockerServer) -> None: ...
+    def __call__(self, input: bytes, addr: Addr) -> None: ...
 
 
 class IExceptionRegistry(Protocol):

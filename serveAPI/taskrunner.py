@@ -4,10 +4,8 @@ from typing import (
     Annotated,
     Any,
     Callable,
-    Coroutine,
     Generic,
     Mapping,
-    Protocol,
     TypeVar,
     get_args,
     get_origin,
@@ -16,7 +14,6 @@ from typing import (
 from serveAPI.di import DependencyInjector
 from serveAPI.exceptions import (
     DependencyResolveError,
-    DispatchError,
     EncoderDecodeError,
     EncoderEncodeError,
     ParamsResolveError,
@@ -24,20 +21,19 @@ from serveAPI.exceptions import (
     ResponseMiddlewareError,
     RouterError,
     ServerAPIException,
-    TypeCastError,
     TypeCastFromModelError,
     TypeCastToModelError,
     UnhandledError,
 )
 from serveAPI.interfaces import (
     Addr,
-    IDispatcher,
     IEncoder,
     IExceptionRegistry,
     IMiddleware,
     IRouterAPI,
     ISockerServer,
     ITaskRunner,
+    LaunchTask,
     Params,
     TypeCast,
 )
@@ -76,69 +72,11 @@ def resolve_params_addr(
 @dataclass
 class TaskRunner(ITaskRunner, Generic[T]):
     encoder: IEncoder[T]
-    cast: TypeCast[T] | None
-
-    dispatcher: IDispatcher
-
-    injector: DependencyInjector
-
-    middleware: IMiddleware[T]
-    router: IRouterAPI
-
-    def inject_server(self, server: ISockerServer) -> None:
-        self.dispatcher.inject_server(server)
-
-    async def __call__(self, input: bytes, addr: Addr) -> None:
-        Exc: type[ServerAPIException] = EncoderDecodeError
-        try:
-            route, data = self.encoder.decode(input)
-            Exc = RouterError
-            route_pack, params = self.router.get_handler_pack(route)
-            Exc = RequestMiddlewareError
-            data = await self.middleware.proc(data, "request")
-            if self.cast:
-                Exc = TypeCastError
-                obj_data = self.cast.to_model(data, route_pack.input_type)  # type: ignore
-            else:
-                obj_data = data
-            Exc = ParamsResolveError
-            handler = route_pack.handler
-            params_bounded_handler = resolve_params_addr(handler, params, addr)
-            Exc = DependencyResolveError
-            deps = await self.injector.resolve(params_bounded_handler)
-
-            async def params_deps_bounded_handler():
-                return await params_bounded_handler(obj_data, **deps)
-
-            Exc = DispatchError
-            await self.dispatcher.dispatch(
-                params_deps_bounded_handler,
-                addr,
-            )
-
-        except Exception as e:
-            err = Exc("Error on TaskRunner")
-            err.__cause__ = e
-            await self.dispatcher.dispatch_exception(err, addr)
-
-
-class LaunchTask2(Protocol):
-    def __call__(self, coro: Coroutine[Any, Any, None]) -> None: ...
-
-
-class ITaskRunner2(Protocol):
-    def inject_server(self, server: ISockerServer) -> None: ...
-    def __call__(self, input: bytes, addr: Addr) -> None: ...
-
-
-@dataclass
-class TaskRunner2(ITaskRunner2, Generic[T]):
-    encoder: IEncoder[T]
     cast: TypeCast[T]
     injector: DependencyInjector
     middleware: IMiddleware[T]
     router: IRouterAPI
-    launcher: LaunchTask2
+    launcher: LaunchTask
     exception_handlers: IExceptionRegistry
     _server: ISockerServer | None = None
 
@@ -158,10 +96,7 @@ class TaskRunner2(ITaskRunner2, Generic[T]):
         return encoded
 
     def __call__(self, input: bytes, addr: Addr) -> None:
-        async def task_async():
-            return await self._run_task(input, addr)
-
-        self.launcher(task_async)
+        self.launcher(self._run_task(input, addr))
 
     async def _run_task(self, input: bytes, addr: Addr) -> None:
         Exc: Callable[[str], ServerAPIException] | None = EncoderDecodeError
