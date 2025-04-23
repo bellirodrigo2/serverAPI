@@ -19,7 +19,7 @@ class RouterError(ServerAPIException):
     pass
 
 
-class TypeValidatorError(ServerAPIException):
+class TypeCastError(ServerAPIException):
     pass
 
 
@@ -60,4 +60,8 @@ def internal_exception_handler(
         err_msg["OriginalException"]["Type"] = type(original).__name__
         err_msg["OriginalException"]["Msg"] = str(original)
 
-    return json.dumps(err_msg)
+    return json.dumps(err_msg, ensure_ascii=False)
+
+
+class ParseError(ServerAPIException):
+    pass

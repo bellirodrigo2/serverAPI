@@ -47,4 +47,4 @@ class ExceptionRegistry(IExceptionRegistry):
             if isinstance(exc, exc_type):
                 return handler(exc)
 
-        raise UnhandledError() from exc
+        raise UnhandledError("From ExceptionRegistry") from exc

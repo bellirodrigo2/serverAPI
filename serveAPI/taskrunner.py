@@ -19,9 +19,11 @@ from serveAPI.exceptions import (
     ParamsResolveError,
     RequestMiddlewareError,
     RouterError,
-    TypeValidatorError,
+    ServerAPIException,
+    TypeCastError,
 )
 from serveAPI.interfaces import (
+    Addr,
     IDispatcher,
     IEncoder,
     IMiddleware,
@@ -29,17 +31,19 @@ from serveAPI.interfaces import (
     ISockerServer,
     ITaskRunner,
     Params,
-    ValidatorFunc,
+    TypeCast,
 )
 
 T = TypeVar("T")
 
 
-def resolve_params(
-    handler: Callable[..., Any], given_param: Mapping[str, str]
+def resolve_params_addr(
+    handler: Callable[..., Any],
+    given_param: Mapping[str, str],
+    given_addr: Addr,
 ) -> Callable[..., Any]:
     sig = inspect.signature(handler)
-    bound_args = {}
+    bound_args: dict[str, Any] = {}
 
     for name, param in sig.parameters.items():
         ann = param.annotation
@@ -47,8 +51,12 @@ def resolve_params(
             inner, *_ = get_args(ann)  # extras from Annotated
             if inner is Params:
                 bound_args[name] = given_param
+            elif inner is Addr:
+                bound_args[name] = given_addr
         elif ann is Params:
             bound_args[name] = given_param
+        elif ann is Addr:
+            bound_args[name] = given_addr
 
     def bounded_handler(*args: Any, **kwargs: Any):
         final_kwargs = {**kwargs, **bound_args}
@@ -61,7 +69,7 @@ def resolve_params(
 class TaskRunner(ITaskRunner, Generic[T]):
 
     encoder: IEncoder[T]
-    validator: ValidatorFunc
+    cast: TypeCast[T] | None
 
     dispatcher: IDispatcher
 
@@ -73,54 +81,40 @@ class TaskRunner(ITaskRunner, Generic[T]):
     def inject_server(self, server: ISockerServer) -> None:
         self.dispatcher.inject_server(server)
 
-    async def execute(self, input: bytes, addr: str | tuple[str, int]) -> str:
+    async def execute(self, input: bytes, addr: Addr) -> str:
 
         route: str | None = None
+
+        Exc: type[ServerAPIException] = EncoderDecodeError
         try:
-            try:
-                route, data = self.encoder.decode(input)
-            except Exception as e:
-                raise EncoderDecodeError from e
-
-            try:
-                route_pack, params = self.router.get_handler_pack(route)
-            except Exception as e:
-                raise RouterError from e
-
-            try:
-                obj_data = self.validator(data, route_pack.input_type)  # type: ignore
-            except Exception as e:
-                raise TypeValidatorError from e
-
-            try:
-                data = self.middleware.proc(data, "request")
-            except Exception as e:
-                raise RequestMiddlewareError from e
-
-            try:
-                handler = route_pack.handler
-                params_bounded_handler = resolve_params(handler, params)
-            except Exception as e:
-                raise ParamsResolveError from e
-
-            try:
-                deps = await self.injector.resolve(params_bounded_handler)
-            except Exception as e:
-                raise DependencyResolveError from e
+            route, data = self.encoder.decode(input)
+            Exc = RouterError
+            route_pack, params = self.router.get_handler_pack(route)
+            Exc = RequestMiddlewareError
+            data = self.middleware.proc(data, "request")
+            if self.cast:
+                Exc = TypeCastError
+                obj_data = self.cast.to_model(data, route_pack.input_type)  # type: ignore
+            else:
+                obj_data = data
+            Exc = ParamsResolveError
+            handler = route_pack.handler
+            params_bounded_handler = resolve_params_addr(handler, params, addr)
+            Exc = DependencyResolveError
+            deps = await self.injector.resolve(params_bounded_handler)
 
             async def params_deps_bounded_handler():
                 return await params_bounded_handler(obj_data, **deps)
 
-            try:
-                await self.dispatcher.dispatch(
-                    params_deps_bounded_handler,
-                    addr,
-                )
-            except Exception as e:
-                raise DispatchError from e
+            Exc = DispatchError
+            await self.dispatcher.dispatch(
+                params_deps_bounded_handler,
+                addr,
+            )
 
-        except Exception as err:
-
+        except Exception as e:
+            err = Exc("Error on TaskRunner")
+            err.__cause__ = e
             await self.dispatcher.dispatch_exception(err, addr)
 
         return route or "UnkownRoute"

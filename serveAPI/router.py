@@ -6,32 +6,15 @@ from typing import Any, Callable, Mapping, MutableMapping, Sequence, get_type_hi
 from serveAPI.interfaces import IHandlerPack, IRouterAPI
 
 
-class HandlerPack(IHandlerPack):
+@dataclass(frozen=True)
+class HandlerPack:
+    handler: Callable[..., Any]
+    input_type: type | None
+    # output_type: type | None
+    params: tuple[str, ...]
 
-    def __init__(
-        self,
-        handler: Callable[..., Any],
-        input_type: type | None,
-        params: tuple[str, ...],
-    ):
-        self._handler = handler
-        self._input_type = input_type
-        self._params = params
-
-    @property
-    def params(self) -> tuple[str, ...]:
-        return self._params
-
-    @property
-    def handler(self) -> Callable[..., Any]:
-        return self._handler
-
-    @property
-    def input_type(self) -> type | None:
-        return self._input_type
-
-    def __str__(self) -> str:
-        return f'HandlerPack(input_type:"{self.input_type}, params:"{self.params}"")'
+    # def __str__(self) -> str:
+    # return f'HandlerPack(input_type:"{self.input_type}, params:"{self.params}"")'
 
 
 class PathValidationError(ValueError):
@@ -129,7 +112,7 @@ class RouterAPI(IRouterAPI):
             params = dict(zip(params_key, params_input))
 
             return route_pack, params
-        raise Exception
+        raise Exception(f"Route {route} not found on RouterAPI")
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@ from typing import Annotated
 
 import pytest
 
-from serveAPI.interfaces import Params
-from serveAPI.taskrunner import resolve_params
+from serveAPI.interfaces import Addr, Params
+from serveAPI.taskrunner import resolve_params_addr
 
 
 def params_func(params: Params) -> Params:
@@ -33,7 +33,9 @@ def test_params(func):
     olddict = {"a": "b", "c": "d"}
     newdict = {"foo": "bar", "hello": "world"}
 
-    new_func = resolve_params(func, newdict)
+    addr = Addr("localhost", 5555)
+
+    new_func = resolve_params_addr(func, newdict, addr)
 
     retold = func(olddict)
     assert retold == olddict

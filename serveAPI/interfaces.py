@@ -1,20 +1,21 @@
-from typing import (
-    Any,
-    Awaitable,
-    Callable,
-    Coroutine,
-    Literal,
-    Mapping,
-    Protocol,
-    Sequence,
-    Type,
-    TypeVar,
-)
+from dataclasses import dataclass
+from typing import Any, Callable, Literal, Mapping, Protocol, Sequence, Type, TypeVar
 
 T = TypeVar("T")
+U = TypeVar("U")
 # Tco = TypeVar("Tco", covariant=True)
 
 middlewareType = Literal["request", "response"]
+
+
+class Params(dict[str, str]):
+    pass
+
+
+@dataclass
+class Addr:
+    ip: str
+    port: int
 
 
 class IMiddleware(Protocol[T]):
@@ -51,23 +52,20 @@ class IRouterAPI(Protocol):
     ) -> tuple[IHandlerPack, Mapping[str, str]]: ...
 
 
-class Params(dict[str, str]):
-    pass
-
-
 class ISockerServer(Protocol):
     async def start(self) -> None: ...
     async def stop(self) -> None: ...
-    async def write(self, data: bytes, addr: str | tuple[str, int]) -> None: ...
+    async def write(self, data: bytes, addr: Addr) -> None: ...
 
 
 class ITaskRunner(Protocol):
     def inject_server(self, server: ISockerServer) -> None: ...
-    async def execute(self, input: bytes, addr: str | tuple[str, int]) -> str: ...
+    async def execute(self, input: bytes, addr: Addr) -> str: ...
 
 
-class ValidatorFunc(Protocol):
-    def __call__(self, arg: Any, type_: type[Any]) -> Any: ...
+class TypeCast(Protocol[T]):
+    def to_model(self, arg: T, model: Callable[..., Any]) -> Any: ...
+    def from_model(self, arg: Any) -> T: ...
 
 
 class LaunchTask(Protocol):
@@ -83,9 +81,9 @@ class IDispatcher(Protocol):
     async def dispatch(
         self,
         func: Callable[[], Any],
-        addr: str | tuple[str, int],
+        addr: Addr,
     ) -> None: ...
-    async def dispatch_exception(self, err: Exception, addr: str | tuple[str, int]): ...
+    async def dispatch_exception(self, err: Exception, addr: Addr): ...
 
 
 class IExceptionRegistry(Protocol):

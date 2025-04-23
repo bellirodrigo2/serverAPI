@@ -9,6 +9,7 @@ from serveAPI.exceptions import (
     UnhandledError,
 )
 from serveAPI.interfaces import (
+    Addr,
     IDispatcher,
     IEncoder,
     IExceptionRegistry,
@@ -16,8 +17,6 @@ from serveAPI.interfaces import (
     ISockerServer,
     LaunchTask,
 )
-
-# from serveAPI.safedict import SafeDict
 
 T = TypeVar("T")
 
@@ -37,13 +36,13 @@ class Dispatcher(IDispatcher, Generic[T]):
     async def dispatch(
         self,
         func: Callable[[], Any],
-        addr: str | tuple[str, int],
+        addr: Addr,
     ) -> None:
 
         ondone = partial(self._ondone, addr=addr)
         self.launcher(func, ondone)
 
-    async def dispatch_exception(self, err: Exception, addr: str | tuple[str, int]):
+    async def dispatch_exception(self, err: Exception, addr: Addr):
 
         encoded = self._resolve_exception(err)
 
@@ -61,39 +60,33 @@ class Dispatcher(IDispatcher, Generic[T]):
         encoded = result.encode()
         return encoded
 
-    async def _ondone(self, fut: asyncio.Future[Any], addr: str | tuple[str, int]):
-        try:
+    async def _ondone(self, fut: asyncio.Future[Any], addr: Addr):
 
+        Exc: type[Exception] | None = None
+        try:
             if fut.cancelled():
                 raise Exception("Coroutine cancelled!")
             response = fut.result()
+            Exc = ResponseMiddlewareError
+            response = self.middleware.proc(response, "response")
 
-            try:
-                response = self.middleware.proc(response, "response")
-            except Exception as e:
-                raise ResponseMiddlewareError from e
-            try:
-                encoded = self.encoder.encode(response)
-            except Exception as e:
-                raise EncoderEncodeError from e
+            Exc = EncoderEncodeError
+            encoded = self.encoder.encode(response)
 
         except Exception as e:
-            encoded = self._resolve_exception(e)
+            err = Exc("Error on dispatch callback") if Exc else e
+            if Exc:
+                err.__cause__ = e
+            encoded = self._resolve_exception(err)
 
         await self._respond(addr, encoded)
 
     async def _respond(
         self,
-        addr: str | tuple[str, int] | None,
+        addr: Addr,
         data: bytes,
     ) -> None:
 
-        if addr is not None:
-            # No UDP, addr é tupla (ip, porta), no TCP addr é uma string.
-            if isinstance(addr, tuple):
-                addr = addr[0]  # Envia só o IP
-
-            if self._server is None:
-                raise Exception("Server Not defined on dispatcher")
-
-            await self._server.write(data, addr)  # type: ignore
+        if self._server is None:
+            raise Exception("Server Not defined on dispatcher")
+        await self._server.write(data, addr)  # type: ignore

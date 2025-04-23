@@ -4,9 +4,11 @@ from unittest.mock import ANY
 
 import pytest
 
-from serveAPI.container import Dispatcher_, get_ioc
-from serveAPI.di import Depends, IoCContainerSingleton
-from serveAPI.interfaces import Params
+from serveAPI.container import Dispatcher_, Middleware_
+from serveAPI.di import IoCContainerSingleton
+from serveAPI.exceptions import RequestMiddlewareError, RouterError
+from serveAPI.interfaces import Addr, Params
+from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
 from serveAPI.taskrunner import TaskRunner
 
@@ -78,14 +80,80 @@ async def test_mocked_dispatch(
 
     msg = f"serveAPI:{router_msg}:{text}"
     input = msg.encode()
-    addr = "addr1"
+    addr = Addr("localhost", 1234)
 
     return_route = await taskrunner.execute(input, addr)
     await asyncio.sleep(0.2)
 
     mockeddispatcher.dispatch.assert_called_with(ANY, addr)
+    # args, kwargs = mockeddispatcher.dispatch.call_args
+
     assert return_route == router_msg
 
     assert router_idx in router.routes
     handler = router.routes[router_idx].handler
     assert handler == func
+
+
+async def test_mocked_dispatch_no_route(
+    mocked_dispatch_ioc: IoCContainerSingleton,
+):
+
+    ioc = mocked_dispatch_ioc
+    mockeddispatcher = ioc.resolve(Dispatcher_)
+
+    taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
+
+    route = "route"
+    text = "helloworld"
+
+    msg = f"serveAPI:{route}:{text}"
+    input = msg.encode()
+    addr = Addr("localhost", 1234)
+
+    return_route = await taskrunner.execute(input, addr)
+    await asyncio.sleep(0.2)
+
+    mockeddispatcher.dispatch_exception.assert_called_with(ANY, addr)
+    args, _ = mockeddispatcher.dispatch_exception.call_args
+    assert return_route == route
+    assert isinstance(args[0], RouterError)
+    assert str(args[0]) == "Error on TaskRunner"
+
+
+async def test_mocked_dispatch_raise_middleware(
+    mocked_dispatch_ioc: IoCContainerSingleton,
+):
+
+    ioc = mocked_dispatch_ioc
+    mockeddispatcher = ioc.resolve(Dispatcher_)
+    middleware = cast(Middleware[Any], ioc.resolve(Middleware_))
+    taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
+
+    router = cast(RouterAPI, ioc.resolve(RouterAPI))
+
+    route = "route"
+    text = "helloworld"
+
+    def raise_func():
+        raise Exception("Middleware Error")
+
+    def func():
+        return None
+
+    router.register_route(route, func)
+
+    middleware.add_middleware_func(raise_func, "request")
+
+    msg = f"serveAPI:{route}:{text}"
+    input = msg.encode()
+    addr = Addr("localhost", 1234)
+
+    return_route = await taskrunner.execute(input, addr)
+    await asyncio.sleep(0.2)
+
+    mockeddispatcher.dispatch_exception.assert_called_with(ANY, addr)
+    args, _ = mockeddispatcher.dispatch_exception.call_args
+    assert return_route == route
+    assert isinstance(args[0], RequestMiddlewareError)
+    assert str(args[0]) == "Error on TaskRunner"

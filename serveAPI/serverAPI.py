@@ -29,12 +29,10 @@ class App(Generic[T]):
     @asynccontextmanager
     async def _default_lifespan(self) -> AsyncGenerator[None, None]:
         await self._server.start()
-        await self._launcher.start()
         try:
             yield
         finally:
             await self._server.stop()
-            await self._launcher.start()
 
     def lifespan(
         self, func: Callable[[], AsyncGenerator[None, None]]

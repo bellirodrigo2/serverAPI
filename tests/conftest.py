@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from serveAPI.container import Dispatcher_, get_ioc
+from serveAPI.container import Dispatcher_, get_simple_str_ioc
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.exceptionhandler import ExceptionRegistry
 from serveAPI.interfaces import ISockerServer
@@ -98,7 +98,7 @@ async def mocked_server_ioc() -> IoCContainerSingleton:
     def provide_server_mock(_: IoCContainer):
         return AsyncMock(spec=ISockerServer)
 
-    ioc = get_ioc()
+    ioc = get_simple_str_ioc()
     ioc.register(ISockerServer, provide_server_mock)
 
     return ioc
@@ -110,7 +110,7 @@ async def mocked_dispatch_ioc() -> IoCContainerSingleton:
     def provide_dispatch_mock(_: IoCContainer):
         return AsyncMock(spec=Dispatcher_)
 
-    ioc = get_ioc()
+    ioc = get_simple_str_ioc()
     ioc.register(Dispatcher_, provide_dispatch_mock)
 
     return ioc

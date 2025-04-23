@@ -3,9 +3,14 @@ from typing import Any
 from uuid import uuid4
 
 from serveAPI import middleware
+from serveAPI.datatypes.str_input import (
+    provide_str_hashed_encoder,
+    provide_str_middleware,
+    provide_str_simple_encoder,
+)
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.dispatcher import Dispatcher
-from serveAPI.encoder import IntrusiveHeaderEncoder
+from serveAPI.encoder import NonIntrusiveHeaderEncoder
 from serveAPI.exceptionhandler import ExceptionRegistry
 from serveAPI.exceptions import (
     DependencyResolveError,
@@ -16,28 +21,17 @@ from serveAPI.exceptions import (
     RequestMiddlewareError,
     ResponseMiddlewareError,
     RouterError,
-    TypeValidatorError,
+    TypeCastError,
     UnhandledError,
     internal_exception_handler,
 )
-from serveAPI.input_types.str_input import (
-    provide_str_intrusive_encoder,
-    provide_str_middleware,
-    provide_str_validator,
-)
-from serveAPI.interfaces import ISockerServer, LaunchTask, ValidatorFunc
+from serveAPI.interfaces import ISockerServer, LaunchTask, TypeCast
 from serveAPI.router import RouterAPI
 from serveAPI.safedict import SafeDict
 from serveAPI.serverAPI import App
 from serveAPI.servers.tcpserver import TCPServer
 from serveAPI.spawns.asyncio_launcher import provide_asyncio_launcher
 from serveAPI.taskrunner import TaskRunner
-
-# SafeDictTaskID = SafeDict[str | tuple[str, int]]
-
-
-# def provide_safe_dict_dispatcher(_: IoCContainer) -> SafeDictTaskID:
-# return SafeDictTaskID()
 
 
 def provide_exception(_: IoCContainer) -> ExceptionRegistry:
@@ -47,7 +41,7 @@ def provide_exception(_: IoCContainer) -> ExceptionRegistry:
     er.set_handler(EncoderEncodeError, internal_exception_handler)
     er.set_handler(EncoderDecodeError, internal_exception_handler)
     er.set_handler(RouterError, internal_exception_handler)
-    er.set_handler(TypeValidatorError, internal_exception_handler)
+    er.set_handler(TypeCastError, internal_exception_handler)
     er.set_handler(RequestMiddlewareError, internal_exception_handler)
     er.set_handler(ResponseMiddlewareError, internal_exception_handler)
     er.set_handler(ParamsResolveError, internal_exception_handler)
@@ -66,7 +60,7 @@ def provide_di(_: IoCContainer) -> DependencyInjector:
     return DependencyInjector()
 
 
-Encoder_ = IntrusiveHeaderEncoder[Any]
+Encoder_ = NonIntrusiveHeaderEncoder[Any]
 Middleware_ = middleware.Middleware[Any]
 
 Dispatcher_ = Dispatcher[Any]
@@ -77,7 +71,6 @@ def provide_dispatcher(container: IoCContainer) -> Dispatcher_:
     middleware = container.resolve(Middleware_)
     launcher = container.resolve(LaunchTask)
     exception = container.resolve(ExceptionRegistry)
-    # safedict = container.resolve(SafeDictTaskID)
     none_server = container.resolve(ISockerServer)
 
     return Dispatcher[Any](
@@ -96,7 +89,7 @@ def provide_taskrunner(container: IoCContainer) -> TaskRunner[Any]:
     di = container.resolve(DependencyInjector)
     middleware = container.resolve(Middleware_)
     router = container.resolve(RouterAPI)
-    validator = container.resolve(ValidatorFunc)
+    cast = container.resolve(TypeCast)
 
     return TaskRunner(
         encoder=encoder,
@@ -104,7 +97,7 @@ def provide_taskrunner(container: IoCContainer) -> TaskRunner[Any]:
         injector=di,
         middleware=middleware,
         router=router,
-        validator=validator,
+        cast=cast,
     )
 
 
@@ -128,18 +121,14 @@ def provide_none_server(_: IoCContainer) -> None:
     return None
 
 
-def get_ioc():
+def get_base_ioc():
     ioc = IoCContainerSingleton()
 
-    # ioc.register(SafeDictTaskID, provide_safe_dict_dispatcher)
     ioc.register(SafeDictStreamWriter, provide_safe_dict_server)
     ioc.register(ExceptionRegistry, provide_exception)
     ioc.register(RouterAPI, provide_router)
     ioc.register(DependencyInjector, provide_di)
-    ioc.register(Middleware_, provide_str_middleware)
-    ioc.register(Encoder_, provide_str_intrusive_encoder)
     ioc.register(LaunchTask, provide_asyncio_launcher)
-    ioc.register(ValidatorFunc, provide_str_validator)
     ioc.register(MakeID, provide_makeid)
 
     ioc.register(Dispatcher_, provide_dispatcher)
@@ -150,7 +139,30 @@ def get_ioc():
     return ioc
 
 
+def get_str_ioc():
+    ioc = get_base_ioc()
+    ioc.register(TypeCast, lambda _: None)
+    ioc.register(Middleware_, provide_str_middleware)
+
+    return ioc
+
+
+def get_simple_str_ioc():
+    ioc = get_str_ioc()
+    ioc.register(Encoder_, provide_str_simple_encoder)
+
+    return ioc
+
+
+def get_hashed_str_ioc():
+    ioc = get_str_ioc()
+    ioc.register(Encoder_, provide_str_hashed_encoder)
+    return ioc
+
+
 def ServerAPI(host: str, port: int, fire_and_forget: bool):
+
+    ioc = get_ioc()
     taskrunner = ioc.resolve(TaskRunner)
     makeid = ioc.resolve(MakeID)
     server = TCPServer(

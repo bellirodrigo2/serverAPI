@@ -1,13 +1,13 @@
 import pytest
 
-from serveAPI.input_types.str_input import (
-    IntrusiveStrEncoder,
-    make_str_intruside_header,
-    str_intrusive_header,
+from serveAPI.datatypes.str_input import (
+    SimpleStrEncoder,
+    make_str_simple_header,
+    parse_str_simple_header,
 )
 
 
-# Teste para a função make_str_intruside_header
+# Teste para a função make_str_simple_header
 @pytest.mark.parametrize(
     "value, route",
     [
@@ -16,9 +16,9 @@ from serveAPI.input_types.str_input import (
         ("test_value", "/test/route"),
     ],
 )
-def test_make_str_intruside_header(value, route):
+def test_make_str_simple_header(value, route):
     """Verifica a criação do header com id, route e value"""
-    header = make_str_intruside_header(value, route)
+    header = make_str_simple_header(value, route)
 
     # Verificar se o formato do header está correto
     assert header.startswith("serveAPI:")
@@ -26,7 +26,7 @@ def test_make_str_intruside_header(value, route):
     assert header.endswith(f"{route}:{value}")  # Deve terminar com route e value
 
 
-# Teste para o parser str_intrusive_header
+# Teste para o parser parse_str_simple_header
 @pytest.mark.parametrize(
     "header, expected_output",
     [
@@ -38,13 +38,13 @@ def test_make_str_intruside_header(value, route):
         ),
     ],
 )
-def test_str_intrusive_header_valid(header, expected_output):
+def test_parse_str_simple_header_valid(header, expected_output):
     """Verifica se o parser extrai corretamente id, route e value do header"""
-    result = str_intrusive_header(header)
+    result = parse_str_simple_header(header)
     assert result == expected_output
 
 
-# Teste para o comportamento do IntrusiveStrEncoder
+# Teste para o comportamento do SimpleStrEncoder
 @pytest.mark.parametrize(
     "value, route, expected_encoded, expected_decoded",
     [
@@ -69,10 +69,10 @@ def test_str_intrusive_header_valid(header, expected_output):
     ],
 )
 def test_intrusive_str_encoder(value, route, expected_encoded, expected_decoded):
-    """Verifica a codificação e decodificação usando o IntrusiveStrEncoder"""
+    """Verifica a codificação e decodificação usando o SimpleStrEncoder"""
 
-    encoder = IntrusiveStrEncoder()
-    header = make_str_intruside_header(value, route)
+    encoder = SimpleStrEncoder()
+    header = make_str_simple_header(value, route)
     encoded = encoder._encode(header)
     assert encoded == expected_encoded
     decoded = encoder._decode(encoded)
@@ -94,7 +94,7 @@ def test_intrusive_str_encoder(value, route, expected_encoded, expected_decoded)
 def test_parser_in_encoder(header, expected_parsed):
     """Verifica se o parser do encoder funciona corretamente ao extrair o id, route, e value"""
 
-    encoder = IntrusiveStrEncoder()
+    encoder = SimpleStrEncoder()
 
     # Usar o parser do encoder
     parsed = encoder._parser(header)
