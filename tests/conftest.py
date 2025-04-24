@@ -1,3 +1,4 @@
+from typing import Annotated, Callable
 from unittest.mock import AsyncMock
 
 import pytest
@@ -41,9 +42,16 @@ def router():
 
 
 @pytest.fixture
-def sample_handler_no_params():
-    # Exemplo de handler sem parâmetros
-    def handler() -> str:
+def sample_handler() -> Callable[..., str]:
+    def handler(data: Annotated[dict, "body"]) -> str:
+        return f"Data: {data}"
+
+    return handler
+
+
+@pytest.fixture
+def sample_handler_no_params() -> Callable[[], str]:
+    def handler(_: Annotated[dict, "body"]) -> str:
         return "No parameters"
 
     return handler

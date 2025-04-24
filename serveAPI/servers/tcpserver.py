@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Callable
 
-from serveAPI.interfaces import Addr, ISockerServer, ITaskRunner
+from serveAPI.interfaces import IAddr, ISockerServer, ITaskRunner
 from serveAPI.safedict import SafeDict
 
 
@@ -40,7 +40,7 @@ class TCPServer(ISockerServer):
                 if not data:
                     break
 
-                route = await self.runner.execute(data, addr_str)
+                route = await self.runner(data, addr_str)
 
                 if not self.fire_and_forget and addr:
                     msg = f'Message received from addr:"{addr_str}" for route:"{route}"'
@@ -51,7 +51,7 @@ class TCPServer(ISockerServer):
             await writer.wait_closed()
             await self.writers.pop(addr_str)
 
-    async def write(self, data: bytes, addr: Addr) -> None:
+    async def write(self, data: bytes, addr: IAddr) -> None:
         writer = await self.writers.get(addr)
         if writer:
             try:

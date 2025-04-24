@@ -6,15 +6,13 @@ from typing import (
     Awaitable,
     Callable,
     MutableMapping,
+    Sequence,
     get_args,
     get_origin,
     get_type_hints,
 )
 
-
-@dataclass
-class Depends:
-    dependency: Callable[[], Any] | type[Any]  # <--- aqui está a mudança
+from serveAPI.interfaces import Depends
 
 
 @dataclass
@@ -71,70 +69,92 @@ class IoCContainerSingleton(IoCContainer):
 class DependencyInjector:
     container: IoCContainer = field(default_factory=IoCContainer)
 
-    async def resolve(self, func: Callable[..., Any]) -> MutableMapping[str, Any]:
-        return await self._resolve_dependencies(func)
+    def _unwrap_annotation(self, annotation: Any) -> tuple[Any, Sequence[Any]]:
+        if annotation is None:
+            return None, ()
+        origin = get_origin(annotation)
+        if origin is None:
+            return annotation, ()
+        if origin is Annotated:
+            args = get_args(annotation)
+            return args[0], args[1:]
+        return annotation, ()
+
+    async def resolve(
+        self,
+        func: Callable[..., Any],
+        context: MutableMapping[Any, Any] | None = None,
+    ) -> MutableMapping[str, Any]:
+        context = context or {}
+        return await self._resolve_dependencies(func, context)
 
     async def _resolve_dependencies(
-        self, func: Callable[..., Any]
+        self,
+        func: Callable[..., Any],
+        context: MutableMapping[Any, Any],
     ) -> MutableMapping[str, Any]:
         sig = inspect.signature(func)
         type_hints = get_type_hints(func, include_extras=True)
         kwargs: MutableMapping[str, Any] = {}
 
         for name, param in sig.parameters.items():
-            depends_obj: Depends | None = None
-
-            # 1. Checar se é Annotated com Depends dentro
             annotation = type_hints.get(name)
-            if annotation and get_origin(annotation) is Annotated:
-                _, *extras = get_args(annotation)
-                for extra in extras:
-                    if isinstance(extra, Depends):
-                        depends_obj = extra
-                        break
+            real_type, extras = self._unwrap_annotation(annotation)
 
-            # 2. Se não for Annotated, checar se default é Depends
+            # 1) Injeção por contexto (Params, IAddr, etc)
+            if real_type in context:
+                kwargs[name] = context[real_type]
+                continue
+
+            # 2) Procura Depends em Annotated extras
+            depends_obj: Depends | None = None
+            for extra in extras:
+                if isinstance(extra, Depends):
+                    depends_obj = extra
+                    break
+
+            # 3) Se não achou em Annotated, vê se default é Depends
             if depends_obj is None and isinstance(param.default, Depends):
                 depends_obj = param.default
 
-            # 3. Se achou Depends, resolve
+            # 4) Se for Depends, resolve
             if depends_obj:
-                value = await self._resolve_single(depends_obj)
+                value = await self._resolve_single(depends_obj, context)
                 kwargs[name] = value
+                continue
 
+            # 5) Caso naked real_type seja um IO-container‐registered type
+            if isinstance(real_type, type) and real_type in self.container:
+                kwargs[name] = self.container.resolve(real_type)
+                continue
+
+            # Caso contrário, ignora (param obrigatório levantará TypeError quando chamar)
         return kwargs
 
-    async def _resolve_single(self, dep_obj: Depends) -> Any:
+    async def _resolve_single(
+        self,
+        dep_obj: Depends,
+        context: MutableMapping[Any, Any],
+    ) -> Any:
         dep = dep_obj.dependency
 
         if isinstance(dep, type):
+            # resolve do IoC
             value = self.container.resolve(dep)
         else:
-            # Resolve dependências da função de forma recursiva
-            inner_kwargs = await self._resolve_dependencies(dep)
+            # função: resolve recursivamente suas próprias deps
+            inner_kwargs = await self._resolve_dependencies(dep, context)
             value = dep(**inner_kwargs)
 
         if isinstance(value, Awaitable):
             value = await value
-
         return value
 
-
-if __name__ == "__main__":
-    ...
-    # class MyService:
-    #     def ping(self):
-    #         return "pong"
-
-    # container = IoCContainerSingleton()
-    # container.register(MyService, lambda c: MyService())  # registra no IoC
-
-    # injector = DependencyInjector(container=container)  # usa IoC direto
-
-    # async def handler(service=Depends(MyService)):
-    #     print(service.ping())
-
-    # import asyncio
-
-    # args = asyncio.run(injector.resolve(handler))
-    # await handler(**args)  # prints: pong
+    async def run_validate_dependencies(
+        self,
+        funcs: Sequence[Callable[..., Any]],
+        context: MutableMapping[Any, Any] | None = None,
+    ) -> None:
+        context = context or {}
+        for func in funcs:
+            await self.resolve(func, context)

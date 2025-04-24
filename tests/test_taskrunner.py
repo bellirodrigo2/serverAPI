@@ -5,9 +5,10 @@ from unittest.mock import ANY
 
 import pytest
 
+from serveAPI.addr import Addr
 from serveAPI.container import Middleware_
 from serveAPI.di import IoCContainerSingleton
-from serveAPI.interfaces import Addr, ISockerServer, Params
+from serveAPI.interfaces import ISockerServer, Params
 from serveAPI.middleware import Middleware
 from serveAPI.router import RouterAPI
 from serveAPI.taskrunner import TaskRunner
@@ -63,7 +64,7 @@ async def test_mocked_dispatch(
 ):
 
     ioc = taskrunner2_mockedserver_ioc
-    router = cast(RouterAPI, ioc.resolve(RouterAPI))
+    router = cast(RouterAPI[str], ioc.resolve(RouterAPI))
     mockedserver = ioc.resolve(ISockerServer)
 
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
@@ -125,7 +126,7 @@ async def test_mocked_dispatch_raise_middleware(
     middleware = cast(Middleware[Any], ioc.resolve(Middleware_))
     taskrunner = cast(TaskRunner[str], ioc.resolve(TaskRunner))
 
-    router = cast(RouterAPI, ioc.resolve(RouterAPI))
+    router = cast(RouterAPI[str], ioc.resolve(RouterAPI))
     mockedserver = ioc.resolve(ISockerServer)
 
     route = "route"
@@ -137,7 +138,7 @@ async def test_mocked_dispatch_raise_middleware(
     def raise_func(_: Any):
         raise ThisError("Middleware Error")
 
-    def func():
+    def func(input: str):
         return None
 
     router.register_route(route, func)

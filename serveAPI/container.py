@@ -7,6 +7,7 @@ from serveAPI.datatypes.str_input import (
     provide_str_hashed_encoder,
     provide_str_middleware,
     provide_str_simple_encoder,
+    provide_str_type_cast,
 )
 from serveAPI.di import DependencyInjector, IoCContainer, IoCContainerSingleton
 from serveAPI.encoder import NonIntrusiveHeaderEncoder
@@ -118,7 +119,7 @@ def get_base_ioc():
 
 def get_str_ioc():
     ioc = get_base_ioc()
-    ioc.register(TypeCast, lambda _: None)
+    ioc.register(TypeCast, provide_str_type_cast)
     ioc.register(Middleware_, provide_str_middleware)
 
     return ioc

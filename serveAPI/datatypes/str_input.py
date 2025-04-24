@@ -5,6 +5,7 @@ from serveAPI.datatypes.str_hash import check_hash, make_hash
 from serveAPI.di import IoCContainer
 from serveAPI.encoder import IntrusiveHeaderEncoder
 from serveAPI.exceptions import ParseError
+from serveAPI.interfaces import TypeCast
 from serveAPI.middleware import Middleware
 
 # --------- Simple str Msg ----------------------
@@ -100,3 +101,23 @@ class HashedStrEncoder(IntrusiveHeaderEncoder[str]):
 
 def provide_str_hashed_encoder(_: IoCContainer) -> SimpleStrEncoder:
     return SimpleStrEncoder()
+
+
+class StrCast(TypeCast[str]):
+    def to_model(self, arg: str, model: type | None) -> str:
+        if isinstance(arg, str):  # type: ignore
+            return arg
+        raise TypeError(
+            f"StrCast 'to_model' arg is type {type(arg)}, when a str was expected"
+        )
+
+    def from_model(self, arg: str) -> str:
+        if isinstance(arg, str):  # type: ignore
+            return arg
+        raise TypeError(
+            f"StrCast 'from_model' arg is type {type(arg)}, when a str was expected"
+        )
+
+
+def provide_str_type_cast(_: IoCContainer) -> StrCast:
+    return StrCast()
