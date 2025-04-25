@@ -8,6 +8,7 @@ from typing import (
     MutableMapping,
     Optional,
     Sequence,
+    TypeVar,
     get_args,
     get_origin,
     get_type_hints,
@@ -24,6 +25,8 @@ class _NoDefault:
 
 NO_DEFAULT = _NoDefault()
 
+T = TypeVar("T")
+
 
 @dataclass
 class FuncArg:
@@ -36,7 +39,7 @@ class FuncArg:
     def istype(self, tgttype: type) -> bool:
         return self.basetype == tgttype
 
-    def getinstance(self, tgttype: type):
+    def getinstance(self, tgttype: type[T]) -> T:
         if self.default is not None and isinstance(self.default, tgttype):
             return self.default
         if self.extras is not None:
