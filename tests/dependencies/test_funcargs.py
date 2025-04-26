@@ -1,5 +1,7 @@
 from typing import Annotated, Any, Callable, Mapping, Sequence
 
+import pytest
+
 from serveAPI.dependencies.mapfunction import NO_DEFAULT, FuncArg, get_func_args
 
 
@@ -135,7 +137,9 @@ def test_funcarg_mix(funcsmap: Mapping[str, Callable[..., Any]]):
     assert mix[0].istype(str) == False
     assert mix[0].istype(int) == False
     assert mix[0].hasinstance(str) == False
-    assert mix[0].getinstance(str) == None
+
+    with pytest.raises(TypeError):
+        mix[0].getinstance(str)
 
     assert mix[1].name == "arg2"
     assert mix[1].argtype == Annotated[str, "meta1"]
@@ -147,7 +151,9 @@ def test_funcarg_mix(funcsmap: Mapping[str, Callable[..., Any]]):
     assert mix[1].hasinstance(str) == True
     assert mix[1].hasinstance(int) == False
     assert mix[1].getinstance(str) == "meta1"
-    assert mix[1].getinstance(int) == None
+
+    with pytest.raises(TypeError):
+        mix[1].getinstance(int)
 
     assert mix[2].name == "arg3"
     assert mix[2].argtype == str
@@ -158,8 +164,11 @@ def test_funcarg_mix(funcsmap: Mapping[str, Callable[..., Any]]):
     assert mix[2].istype(int) == False
     assert mix[2].hasinstance(str) == False
     assert mix[2].hasinstance(int) == False
-    assert mix[2].getinstance(str) == None
-    assert mix[2].getinstance(int) == None
+
+    with pytest.raises(TypeError):
+        mix[2].getinstance(str)
+    with pytest.raises(TypeError):
+        mix[2].getinstance(int)
 
     assert mix[3].name == "arg4"
     assert mix[3].argtype == str
@@ -171,4 +180,6 @@ def test_funcarg_mix(funcsmap: Mapping[str, Callable[..., Any]]):
     assert mix[3].hasinstance(str) == True
     assert mix[3].hasinstance(int) == False
     assert mix[3].getinstance(str) == "foobar"
-    assert mix[3].getinstance(int) == None
+
+    with pytest.raises(TypeError):
+        mix[3].getinstance(int)

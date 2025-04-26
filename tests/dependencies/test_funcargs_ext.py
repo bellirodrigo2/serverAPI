@@ -51,18 +51,3 @@ def test_none_default(funcsmap_extended):
     assert args[0].name == "arg"
     assert args[0].default is None
     assert args[0].basetype == Optional[str] or args[0].argtype == Optional[str]
-
-
-def get_db(db_name: str): ...
-
-
-def get_token(outro_arg: str, token: str = Route(...)):
-    return token
-
-
-def get_user(arg: str, token: str = Depends(get_token), db=Depends(get_db)):
-    return {"user": f"User with token {token}"}
-
-
-def get_data(user: dict = Depends(get_user)):
-    return {"data": f"data for {user['user']}"}

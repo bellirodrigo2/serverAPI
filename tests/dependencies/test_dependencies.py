@@ -1,4 +1,4 @@
-from serveAPI.dependencies.model import Depends, Injectable
+from serveAPI.dependencies.model import Injectable
 
 
 class Class1(Injectable):

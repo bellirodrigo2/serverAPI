@@ -25,7 +25,7 @@ class Injectable(Iinjectable):
         return self._default
 
     def validate(self, instance: Any) -> None:
-        raise NotImplementedError("Base Class Injectable can not be validated")
+        pass
 
 
 class Depends(Injectable, ICallableInjectable):
